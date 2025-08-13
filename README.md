@@ -1,12 +1,15 @@
 # Prompt Saver MCP Server
 
-MCP server that converts successful conversation threads with LLMs as prompts that can be used later for future tasks. Inspired by [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4).
+MCP server that converts successful conversation threads into prompts that can be used for future tasks. 
+
+The most important artifact of your LLM interactions is not the generated results, rather the steps taken to produce said results.
+Inspired by [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4). 
 
 ## Tools
 
 ### `save_prompt`
 Summarizes, categorizes, and converts conversation history into a markdown formatted prompt template. 
-Should run upon completion of a successful complex task.
+Run upon completion of a successful complex task.
 
 **Parameters:**
 - `conversation_messages` (string): JSON string containing the conversation history
@@ -21,7 +24,7 @@ Retrieves prompts from the database using vector search and returns the 3 most r
 - `limit` (optional int): Maximum number of prompts to return (default: 3)
 
 ### `update_prompt`
-Updates an existing prompt based on learnings from conversation. Should be called after using a prompt to improve it.
+Updates an existing prompt based on learnings from conversation. Run after using a prompt to improve it.
 
 **Parameters:**
 - `prompt_id` (string): ID of the prompt to update
