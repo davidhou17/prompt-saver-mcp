@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "prompt-saver": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
+      "cwd": "/path/to/your/prompt-saver-mcp",
+      "env": {
+        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
+        "MONGODB_DATABASE": "prompt_saver",
+        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
+        "AZURE_OPENAI_API_KEY": "your_azure_openai_api_key_here",
+        "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com/"
+      }
+    }
+  }
+}
