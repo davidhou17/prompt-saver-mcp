@@ -58,7 +58,7 @@ class DatabaseManager:
         Returns:
             The ObjectId of the saved prompt as a string
         """
-        if not self.collection:
+        if self.collection is None:
             raise RuntimeError("Database not connected")
         
         prompt_dict = prompt.model_dump()
@@ -75,7 +75,7 @@ class DatabaseManager:
         Returns:
             List of matching prompts
         """
-        if not self.collection:
+        if self.collection is None:
             raise RuntimeError("Database not connected")
         
         # Use MongoDB text search
@@ -110,7 +110,7 @@ class DatabaseManager:
         Returns:
             List of matching prompts sorted by similarity
         """
-        if not self.collection:
+        if self.collection is None:
             raise RuntimeError("Database not connected")
 
         try:
@@ -172,7 +172,7 @@ class DatabaseManager:
         Returns:
             The prompt if found, None otherwise
         """
-        if not self.collection:
+        if self.collection is None:
             raise RuntimeError("Database not connected")
 
         try:
@@ -203,7 +203,7 @@ class DatabaseManager:
         Returns:
             True if the update was successful, False otherwise
         """
-        if not self.collection:
+        if self.collection is None:
             raise RuntimeError("Database not connected")
 
         try:
