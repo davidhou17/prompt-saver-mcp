@@ -7,24 +7,38 @@ Inspired by [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4).
 
 ## Tools
 
+### `use_prompt`
+Retrieves prompts from the database using vector search and returns the 3 most relevant prompts for user selection. **Start here** - always search for existing solutions before beginning new tasks.
+
+**Parameters:**
+- `query` (string): Description of the problem or task you need help with
+- `limit` (optional int): Maximum number of prompts to return (default: 3)
+
 ### `save_prompt`
-Summarizes, categorizes, and converts conversation history into a markdown formatted prompt template. 
-Run upon completion of a successful complex task.
+Summarizes, categorizes, and converts conversation history into a markdown formatted prompt template.
+Run upon completion of a successful complex task to build your prompt library.
 
 **Parameters:**
 - `conversation_messages` (string): JSON string containing the conversation history
 - `task_description` (optional string): Description of the task being performed
 - `context_info` (optional string): Additional context about the conversation
 
-### `use_prompt`
-Retrieves prompts from the database using vector search and returns the 3 most relevant prompts for user selection.
+### `improve_prompt_from_feedback`
+Improve an existing prompt based on user feedback and conversation context. This tool uses AI to analyze feedback and automatically enhance the prompt following prompt engineering best practices.
 
 **Parameters:**
-- `query` (string): Description of the problem or task you need help with
-- `limit` (optional int): Maximum number of prompts to return (default: 3)
+- `prompt_id` (string): ID of the prompt to improve
+- `feedback` (string): User feedback about the prompt's effectiveness
+- `conversation_context` (optional string): Context from the conversation where the prompt was used
+
+### `get_prompt_details`
+Get detailed information about a specific prompt including its full template, history, and metadata. Use this to view the complete prompt before applying it.
+
+**Parameters:**
+- `prompt_id` (string): ID of the prompt to retrieve
 
 ### `update_prompt`
-Updates an existing prompt based on learnings from conversation. Run after using a prompt to improve it.
+Updates an existing prompt with manual changes. Use this when you know exactly what modifications to make, or use `improve_prompt_from_feedback` for AI-driven improvements.
 
 **Parameters:**
 - `prompt_id` (string): ID of the prompt to update
@@ -34,22 +48,8 @@ Updates an existing prompt based on learnings from conversation. Run after using
 - `history` (optional string): Updated history
 - `use_case` (optional string): Updated use case
 
-### `get_prompt_details`
-Get detailed information about a specific prompt including its full template, history, and metadata.
-
-**Parameters:**
-- `prompt_id` (string): ID of the prompt to retrieve
-
-### `improve_prompt_from_feedback`
-Improve an existing prompt based on user feedback and conversation context. This tool uses AI to analyze feedback and automatically enhance the prompt.
-
-**Parameters:**
-- `prompt_id` (string): ID of the prompt to improve
-- `feedback` (string): User feedback about the prompt's effectiveness
-- `conversation_context` (optional string): Context from the conversation where the prompt was used
-
 ### `search_prompts_by_use_case`
-Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'data-analysis').
+Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'data-analysis'). Useful for browsing prompts within specific domains.
 
 **Parameters:**
 - `use_case` (string): The use case category to search for
