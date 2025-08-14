@@ -34,8 +34,26 @@ Updates an existing prompt based on learnings from conversation. Run after using
 - `history` (optional string): Updated history
 - `use_case` (optional string): Updated use case
 
-### Additional Tools
-- `get_prompt_details`: Get detailed information about a specific prompt
+### `get_prompt_details`
+Get detailed information about a specific prompt including its full template, history, and metadata.
+
+**Parameters:**
+- `prompt_id` (string): ID of the prompt to retrieve
+
+### `improve_prompt_from_feedback`
+Improve an existing prompt based on user feedback and conversation context. This tool uses AI to analyze feedback and automatically enhance the prompt.
+
+**Parameters:**
+- `prompt_id` (string): ID of the prompt to improve
+- `feedback` (string): User feedback about the prompt's effectiveness
+- `conversation_context` (optional string): Context from the conversation where the prompt was used
+
+### `search_prompts_by_use_case`
+Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'data-analysis').
+
+**Parameters:**
+- `use_case` (string): The use case category to search for
+- `limit` (optional int): Maximum number of results to return (default: 5)
 
 ## Prompt Engineering Best Practices
 
@@ -171,6 +189,40 @@ update_prompt(
     change_description="Added error handling examples",
     prompt_template="Updated template with better error handling..."
 )
+```
+
+### 4. Getting Prompt Details
+
+Retrieve the full details of a specific prompt:
+
+```python
+# Get complete prompt information
+result = get_prompt_details("prompt_id_here")
+print(result["prompt"]["prompt_template"])  # View the full template
+```
+
+### 5. Improving a Prompt with Feedback
+
+Use AI to automatically improve a prompt based on feedback:
+
+```python
+improve_prompt_from_feedback(
+    prompt_id="prompt_id_here",
+    feedback="The prompt worked well but could use more specific examples for edge cases",
+    conversation_context="Used for debugging a complex API integration issue"
+)
+```
+
+### 6. Searching by Use Case
+
+Find prompts for specific types of tasks:
+
+```python
+# Find all code generation prompts
+result = search_prompts_by_use_case("code-gen", limit=5)
+
+# Find data analysis prompts
+result = search_prompts_by_use_case("data-analysis", limit=3)
 ```
 
 ## Database Schema
