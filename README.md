@@ -7,13 +7,6 @@ Inspired by [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4).
 
 ## Tools
 
-### `use_prompt`
-Retrieves prompts from the database using vector search and returns the 3 most relevant prompts for user selection. **Start here** - always search for existing solutions before beginning new tasks.
-
-**Parameters:**
-- `query` (string): Description of the problem or task you need help with
-- `limit` (optional int): Maximum number of prompts to return (default: 3)
-
 ### `save_prompt`
 Summarizes, categorizes, and converts conversation history into a markdown formatted prompt template.
 Run upon completion of a successful complex task to build your prompt library.
@@ -22,6 +15,13 @@ Run upon completion of a successful complex task to build your prompt library.
 - `conversation_messages` (string): JSON string containing the conversation history
 - `task_description` (optional string): Description of the task being performed
 - `context_info` (optional string): Additional context about the conversation
+- 
+### `use_prompt`
+Retrieves prompts from the database using vector search and returns the 3 most relevant prompts for user selection. 
+
+**Parameters:**
+- `query` (string): Description of the problem or task you need help with
+- `limit` (optional int): Maximum number of prompts to return (default: 3)
 
 ### `improve_prompt_from_feedback`
 Improve an existing prompt based on user feedback and conversation context. This tool uses AI to analyze feedback and automatically enhance the prompt following prompt engineering best practices.
