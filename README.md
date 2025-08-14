@@ -2,8 +2,7 @@
 
 MCP server that converts successful conversation threads into prompts that can be used for future tasks. 
 
-The most important artifact of your LLM interactions is not the generated results, rather the steps taken to produce said results.
-Inspired by [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4). 
+Based on the principle that the most important artifact of your LLM interactions is what you did to produce the results, not the results themselves (see [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4)). And also considering that LLMs are probably already better prompt engineers than humans.
 
 ## Tools
 
