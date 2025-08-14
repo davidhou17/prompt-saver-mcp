@@ -67,7 +67,7 @@ async def app_lifespan(_: FastMCP):
 
     context.prompt_processor = PromptProcessor(context.embedding_manager, context.llm_service)
     context.prompt_retriever = PromptRetriever(context.database_manager, context.embedding_manager)
-    context.prompt_updater = PromptUpdater(context.database_manager, context.embedding_manager)
+    context.prompt_updater = PromptUpdater(context.database_manager, context.embedding_manager, context.llm_service)
 
     yield context
 

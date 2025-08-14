@@ -144,6 +144,16 @@ Add to your Claude Desktop configuration file:
 }
 ```
 
+### System Prompt Configuration
+
+To maximize the value of your saved prompts, add this instruction to your LLM interface's system prompt:
+
+```
+Always search for relevant prompts before starting any large or complex tasks.
+```
+
+This ensures that the LLM checks and uses your existing prompts before starting a new task.
+
 > **💡 Tip**: For enhanced MongoDB management, consider using the [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server) alongside this prompt saver. It provides direct MongoDB operations and can help you manage your prompt database more effectively.
 
 ## Usage Examples

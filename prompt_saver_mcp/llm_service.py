@@ -110,6 +110,73 @@ History:"""
 
         return response.choices[0].message.content.strip()
 
+    async def improve_prompt_based_on_feedback(self, current_prompt: str, feedback: str, conversation_context: str = None) -> dict:
+        """Improve a prompt based on user feedback and conversation context."""
+        context_section = f"\n\nCONVERSATION CONTEXT:\n{conversation_context}" if conversation_context else ""
+
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[{
+                "role": "user",
+                "content": f"""Improve this prompt template based on the user feedback. Follow prompt engineering best practices:
+
+CURRENT PROMPT:
+{current_prompt}
+
+USER FEEDBACK:
+{feedback}{context_section}
+
+IMPROVEMENT GUIDELINES:
+1. Address the specific feedback points
+2. Maintain the original structure and formatting
+3. Keep the same use case and core purpose
+4. Enhance clarity, specificity, and effectiveness
+5. Add missing elements identified in feedback
+6. Preserve existing good elements
+
+STRUCTURE TO MAINTAIN:
+- Identity: Assistant persona and goals
+- Instructions: Clear rules and constraints
+- Examples: Input/output patterns (few-shot learning)
+- Context: Relevant data or documents
+
+FORMATTING TO PRESERVE:
+- Markdown headers (#) and lists (*)
+- XML tags (<example>) for content sections
+- {{placeholders}} for variables
+- Message roles (developer/user/assistant)
+
+Provide the improved prompt template along with a summary of changes made:
+
+IMPROVED PROMPT:
+[Your improved prompt here]
+
+CHANGES MADE:
+[Brief summary of improvements]"""
+            }],
+            temperature=0.4,
+            max_tokens=1200
+        )
+
+        content = response.choices[0].message.content.strip()
+
+        # Parse the response to extract improved prompt and changes
+        if "IMPROVED PROMPT:" in content and "CHANGES MADE:" in content:
+            parts = content.split("CHANGES MADE:")
+            improved_prompt = parts[0].replace("IMPROVED PROMPT:", "").strip()
+            changes_summary = parts[1].strip()
+
+            return {
+                "improved_prompt": improved_prompt,
+                "changes_summary": changes_summary
+            }
+        else:
+            # Fallback if parsing fails
+            return {
+                "improved_prompt": content,
+                "changes_summary": "Improved based on user feedback"
+            }
+
     def _extract_text(self, conversation: ConversationHistory) -> str:
         """Extract text from conversation."""
         parts = []
