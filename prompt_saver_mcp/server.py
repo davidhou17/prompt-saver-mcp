@@ -89,6 +89,17 @@ async def save_prompt(
 ) -> Dict[str, Any]:
     """Save conversation as reusable prompt template.
 
+    **WHEN TO USE:** Call this tool after successfully completing a complex, multi-step task
+    that could be valuable for future similar requests. Look for conversations involving
+    problem-solving, code generation, data analysis, creative work, or any task that
+    produced good results and could benefit others.
+
+    **AUTO-TRIGGER CONDITIONS:**
+    - User expresses satisfaction with results ("this worked great", "perfect", "exactly what I needed")
+    - Complex multi-step process completed successfully
+    - Code generation, analysis, or creative work finished
+    - User asks to "save this approach" or "remember this for later"
+
     Creates a well-structured prompt following best practices:
     - Identity: Defines assistant persona and goals
     - Instructions: Clear rules and constraints
@@ -138,7 +149,21 @@ async def save_prompt(
 
 @mcp.tool()
 async def use_prompt(ctx: Context, query: str, limit: int = 3) -> Dict[str, Any]:
-    """Search for relevant prompts."""
+    """Search for relevant prompts to help with current task.
+
+    **WHEN TO USE:** Call this tool at the beginning of conversations when users ask for help
+    with tasks that might have been solved before. This should be one of your first actions
+    when a user requests assistance.
+
+    **AUTO-TRIGGER CONDITIONS:**
+    - User asks for help with coding, data analysis, writing, or creative tasks
+    - User mentions problems like "I need to...", "How do I...", "Help me create..."
+    - Any request that involves multi-step problem solving
+    - User asks for examples, templates, or guidance on complex tasks
+
+    **FOLLOW-UP:** After presenting results, use get_prompt_details() to retrieve the full
+    template for the prompt the user selects.
+    """
     try:
         app_context = ctx.request_context.lifespan_context
         results = await app_context.prompt_retriever.search_prompts(query, limit)
@@ -167,7 +192,18 @@ async def use_prompt(ctx: Context, query: str, limit: int = 3) -> Dict[str, Any]
 
 @mcp.tool()
 async def get_prompt_details(ctx: Context, prompt_id: str) -> Dict[str, Any]:
-    """Get detailed prompt information."""
+    """Get detailed prompt information including full template.
+
+    **WHEN TO USE:** Call this tool immediately after a user selects a prompt from use_prompt()
+    results. This retrieves the complete prompt template that you can then apply to their task.
+
+    **AUTO-TRIGGER CONDITIONS:**
+    - User selects a specific prompt from search results
+    - User provides a prompt ID they want to see details for
+    - You need the full template content to help with their current task
+
+    **FOLLOW-UP:** Use the retrieved prompt_template to guide your response to the user's request.
+    """
     try:
         app_context = ctx.request_context.lifespan_context
         prompt = await app_context.prompt_retriever.get_prompt_by_id(prompt_id)
@@ -201,7 +237,20 @@ async def update_prompt(
     history: Optional[str] = None,
     use_case: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Update existing prompt."""
+    """Update existing prompt with manual changes.
+
+    **WHEN TO USE:** Call this tool when you need to make specific, targeted updates to a
+    prompt based on user feedback or identified improvements. Use this for manual edits
+    rather than AI-driven improvements.
+
+    **AUTO-TRIGGER CONDITIONS:**
+    - User explicitly requests changes to a specific prompt
+    - User says "update the prompt to include..." or "change the prompt so that..."
+    - You identify specific improvements that need manual specification
+    - User wants to modify use case, summary, or specific template sections
+
+    **ALTERNATIVE:** For AI-driven improvements based on feedback, use improve_prompt_from_feedback() instead.
+    """
     try:
         app_context = ctx.request_context.lifespan_context
 
@@ -228,7 +277,20 @@ async def improve_prompt_from_feedback(
     feedback: str,
     conversation_context: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Improve a prompt based on user feedback and conversation context.
+    """Improve a prompt based on user feedback and conversation context using AI analysis.
+
+    **WHEN TO USE:** Call this tool after using a prompt when the user provides feedback
+    about its effectiveness, or when you observe that a prompt could be improved based
+    on the conversation outcome.
+
+    **AUTO-TRIGGER CONDITIONS:**
+    - User says the prompt "didn't work well", "could be better", "missed something"
+    - User provides specific feedback like "it should include more examples"
+    - You notice the prompt didn't fully address the user's needs
+    - After successfully using a prompt, ask user for feedback and use this tool to improve it
+
+    **ADVANTAGE:** Uses AI to automatically analyze feedback and improve the prompt,
+    unlike update_prompt() which requires manual specification of changes.
 
     Args:
         prompt_id: ID of the prompt to improve
@@ -262,7 +324,21 @@ async def improve_prompt_from_feedback(
 
 @mcp.tool()
 async def search_prompts_by_use_case(ctx: Context, use_case: str, limit: int = 5) -> Dict[str, Any]:
-    """Search for prompts by use case category.
+    """Search for prompts by use case category for targeted task assistance.
+
+    **WHEN TO USE:** Call this tool when you want to find prompts for specific types of
+    tasks, or when the user's request clearly falls into a particular category.
+
+    **AUTO-TRIGGER CONDITIONS:**
+    - User asks for help with coding tasks (use "code-gen")
+    - User needs data analysis help (use "data-analysis")
+    - User wants creative writing assistance (use "creative")
+    - User needs text generation help (use "text-gen")
+    - User asks "show me all prompts for..." a specific type of task
+
+    **COMMON USE CASES:** 'code-gen', 'text-gen', 'data-analysis', 'creative', 'general'
+
+    **FOLLOW-UP:** Present results to user and use get_prompt_details() for selected prompts.
 
     Args:
         use_case: The use case category to search for (e.g., 'code-gen', 'text-gen')
