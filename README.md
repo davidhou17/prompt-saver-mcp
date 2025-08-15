@@ -56,7 +56,7 @@ Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'da
 
 ## Prompt Engineering Best Practices
 
-The generated prompt templates follow proven prompt engineering techniques:
+The generated prompt templates use the following prompt engineering techniques:
 
 ### Structure
 Templates are organized in this order:
@@ -72,6 +72,23 @@ Templates are organized in this order:
 - **Placeholders** (`{variable}`) for customizable inputs
 
 This ensures the saved prompts are well-structured, reusable, and effective for future tasks.
+
+## System Prompt Configuration
+
+To maximize the value of this MCP server, add the following instructions to your LLM interface's system prompt:
+
+```
+Always search for relevant prompts before starting any large or complex tasks.
+
+Upon successful completion of a task, always ask if I want to save the conversation as a prompt.
+
+Upon successful completion of a task with a prompt, always ask if I want to update the prompt.
+
+```
+
+This ensures that the LLM saves, checks, and uses your existing prompts for tasks.
+
+> **💡 Tip**: For enhanced MongoDB management, consider using the [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server) alongside this prompt saver. It provides direct MongoDB operations and can help you manage your prompt database more effectively.
 
 ## Installation
 
@@ -219,23 +236,6 @@ Add to your Claude Desktop configuration file. Choose one of the following confi
 ```
 
 > **Note**: For Anthropic support, install the anthropic package: `pip install anthropic`
-
-### System Prompt Configuration
-
-To maximize the value of this MCP server, add this instruction to your LLM interface's system prompt:
-
-```
-Always search for relevant prompts before starting any large or complex tasks.
-
-Upon successful completion of a task, always ask if I want to save the conversation as a prompt.
-
-Upon successful completion of a task with a prompt, always ask if I want to update the prompt.
-
-```
-
-This ensures that the LLM saves, checks, and uses your existing prompts for tasks.
-
-> **💡 Tip**: For enhanced MongoDB management, consider using the [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server) alongside this prompt saver. It provides direct MongoDB operations and can help you manage your prompt database more effectively.
 
 ## Usage Examples
 
