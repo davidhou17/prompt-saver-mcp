@@ -14,7 +14,7 @@ Run upon completion of a successful complex task to build your prompt library.
 - `conversation_messages` (string): JSON string containing the conversation history
 - `task_description` (optional string): Description of the task being performed
 - `context_info` (optional string): Additional context about the conversation
-- 
+
 ### `use_prompt`
 Retrieves prompts from the database using vector search and returns the 3 most relevant prompts for user selection. 
 
@@ -23,21 +23,15 @@ Retrieves prompts from the database using vector search and returns the 3 most r
 - `limit` (optional int): Maximum number of prompts to return (default: 3)
 
 ### `improve_prompt_from_feedback`
-Improve an existing prompt based on user feedback and conversation context. This tool uses AI to analyze feedback and automatically enhance the prompt following prompt engineering best practices.
+Summarizes feedback during the conversation and updates the prompt based on the feedback and conversation context.
 
 **Parameters:**
 - `prompt_id` (string): ID of the prompt to improve
 - `feedback` (string): User feedback about the prompt's effectiveness
 - `conversation_context` (optional string): Context from the conversation where the prompt was used
 
-### `get_prompt_details`
-Get detailed information about a specific prompt including its full template, history, and metadata. Use this to view the complete prompt before applying it.
-
-**Parameters:**
-- `prompt_id` (string): ID of the prompt to retrieve
-
 ### `update_prompt`
-Updates an existing prompt with manual changes. Use this when you know exactly what modifications to make, or use `improve_prompt_from_feedback` for AI-driven improvements.
+For manual updates to an existing prompt.
 
 **Parameters:**
 - `prompt_id` (string): ID of the prompt to update
@@ -46,6 +40,12 @@ Updates an existing prompt with manual changes. Use this when you know exactly w
 - `prompt_template` (optional string): Updated prompt template
 - `history` (optional string): Updated history
 - `use_case` (optional string): Updated use case
+
+### `get_prompt_details`
+Get detailed information about a specific prompt including its full template, history, and metadata. Used to view the complete prompt before applying it.
+
+**Parameters:**
+- `prompt_id` (string): ID of the prompt to retrieve
 
 ### `search_prompts_by_use_case`
 Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'data-analysis'). Useful for browsing prompts within specific domains.
@@ -148,7 +148,7 @@ This ensures the saved prompts are well-structured, reusable, and effective for 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | Anthropic API key | Required |
-| `ANTHROPIC_MODEL` | Model name | `claude-4-sonnet` |
+| `ANTHROPIC_MODEL` | Model name | `claude-sonnet-4-20250514` |
 
 ### Claude Desktop Integration
 
@@ -211,7 +211,7 @@ Add to your Claude Desktop configuration file. Choose one of the following confi
         "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
         "LLM_PROVIDER": "anthropic",
         "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
-        "ANTHROPIC_MODEL": "claude-4-sonnet"
+        "ANTHROPIC_MODEL": "claude-sonnet-4-20250514"
       }
     }
   }
@@ -222,13 +222,18 @@ Add to your Claude Desktop configuration file. Choose one of the following confi
 
 ### System Prompt Configuration
 
-To maximize the value of your saved prompts, add this instruction to your LLM interface's system prompt:
+To maximize the value of this MCP server, add this instruction to your LLM interface's system prompt:
 
 ```
 Always search for relevant prompts before starting any large or complex tasks.
+
+Upon successful completion of a task, always ask if I want to save the conversation as a prompt.
+
+Upon successful completion of a task with a prompt, always ask if I want to update the prompt.
+
 ```
 
-This ensures that the LLM checks and uses your existing prompts before starting a new task.
+This ensures that the LLM saves, checks, and uses your existing prompts for tasks.
 
 > **💡 Tip**: For enhanced MongoDB management, consider using the [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server) alongside this prompt saver. It provides direct MongoDB operations and can help you manage your prompt database more effectively.
 

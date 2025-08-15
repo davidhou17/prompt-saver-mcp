@@ -68,7 +68,7 @@ async def app_lifespan(_: FastMCP):
             raise ValueError("Missing required environment variables for Anthropic")
         llm_api_key = anthropic_api_key
         llm_endpoint = None
-        llm_model = os.getenv("ANTHROPIC_MODEL", "claude-4-sonnet")
+        llm_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
     else:
         raise ValueError(f"Unsupported LLM provider: {llm_provider}. Supported: azure_openai, openai, anthropic")
 
