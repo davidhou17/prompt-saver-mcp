@@ -99,16 +99,20 @@ This ensures the saved prompts are well-structured, reusable, and effective for 
    # Edit .env with your API keys and MongoDB Atlas URI
    ```
 
-   Required:
+   Required for all configurations:
    - `MONGODB_URI`: MongoDB Atlas connection string
    - `VOYAGE_AI_API_KEY`: Voyage AI API key for embeddings
-   - `AZURE_OPENAI_API_KEY`: Azure OpenAI API key for LLM operations
-   - `AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint URL
+
+   Choose one LLM provider:
+   - **Azure OpenAI**: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
+   - **OpenAI**: `OPENAI_API_KEY`
+   - **Anthropic**: `ANTHROPIC_API_KEY`
 
 ## Configuration
 
 ### Environment Variables
 
+#### Core Configuration
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MONGODB_URI` | MongoDB Atlas connection URI | Required |
@@ -116,14 +120,41 @@ This ensures the saved prompts are well-structured, reusable, and effective for 
 | `MONGODB_COLLECTION` | Collection name | `prompts` |
 | `VOYAGE_AI_API_KEY` | Voyage AI API key | Required |
 | `VOYAGE_AI_EMBEDDING_MODEL` | Embedding model | `voyage-3-large` |
+
+#### LLM Provider Configuration
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_PROVIDER` | LLM provider: `azure_openai`, `openai`, or `anthropic` | `azure_openai` |
+
+**Provider Options:**
+- **Azure OpenAI**: Enterprise-grade with enhanced security and compliance
+- **OpenAI**: Direct access to latest models with simple API key setup
+- **Anthropic**: Claude models with strong reasoning capabilities
+
+#### Azure OpenAI (when LLM_PROVIDER=azure_openai)
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | Required |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | Required |
 | `AZURE_OPENAI_MODEL` | Model deployment name | `gpt-4o` |
 
+#### OpenAI (when LLM_PROVIDER=openai)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | Required |
+| `OPENAI_MODEL` | Model name | `gpt-4o` |
+
+#### Anthropic (when LLM_PROVIDER=anthropic)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ANTHROPIC_API_KEY` | Anthropic API key | Required |
+| `ANTHROPIC_MODEL` | Model name | `claude-4-sonnet` |
+
 ### Claude Desktop Integration
 
-Add to your Claude Desktop configuration file:
+Add to your Claude Desktop configuration file. Choose one of the following configurations based on your preferred LLM provider:
 
+#### Azure OpenAI Configuration
 ```json
 {
   "mcpServers": {
@@ -135,13 +166,59 @@ Add to your Claude Desktop configuration file:
         "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
         "MONGODB_DATABASE": "prompt_saver",
         "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
+        "LLM_PROVIDER": "azure_openai",
         "AZURE_OPENAI_API_KEY": "your_azure_openai_api_key_here",
-        "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com/"
+        "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com/",
+        "AZURE_OPENAI_MODEL": "gpt-4o"
       }
     }
   }
 }
 ```
+
+#### OpenAI Configuration
+```json
+{
+  "mcpServers": {
+    "prompt-saver": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
+      "cwd": "/path/to/your/prompt-saver-mcp",
+      "env": {
+        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
+        "MONGODB_DATABASE": "prompt_saver",
+        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
+        "LLM_PROVIDER": "openai",
+        "OPENAI_API_KEY": "your_openai_api_key_here",
+        "OPENAI_MODEL": "gpt-4o"
+      }
+    }
+  }
+}
+```
+
+#### Anthropic Configuration
+```json
+{
+  "mcpServers": {
+    "prompt-saver": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
+      "cwd": "/path/to/your/prompt-saver-mcp",
+      "env": {
+        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
+        "MONGODB_DATABASE": "prompt_saver",
+        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
+        "LLM_PROVIDER": "anthropic",
+        "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
+        "ANTHROPIC_MODEL": "claude-4-sonnet"
+      }
+    }
+  }
+}
+```
+
+> **Note**: For Anthropic support, install the anthropic package: `pip install anthropic`
 
 ### System Prompt Configuration
 

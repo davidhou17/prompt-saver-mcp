@@ -43,11 +43,34 @@ async def app_lifespan(_: FastMCP):
     # Get required environment variables
     mongodb_uri = os.getenv("MONGODB_URI")
     voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")
-    azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
-    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 
-    if not all([mongodb_uri, voyage_ai_key, azure_openai_key, azure_openai_endpoint]):
-        raise ValueError("Missing required environment variables")
+    # Determine LLM provider based on environment variables
+    llm_provider = os.getenv("LLM_PROVIDER", "azure_openai").lower()
+
+    if llm_provider == "azure_openai":
+        azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
+        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        if not all([mongodb_uri, voyage_ai_key, azure_openai_key, azure_openai_endpoint]):
+            raise ValueError("Missing required environment variables for Azure OpenAI")
+        llm_api_key = azure_openai_key
+        llm_endpoint = azure_openai_endpoint
+        llm_model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+    elif llm_provider == "openai":
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not all([mongodb_uri, voyage_ai_key, openai_api_key]):
+            raise ValueError("Missing required environment variables for OpenAI")
+        llm_api_key = openai_api_key
+        llm_endpoint = None
+        llm_model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    elif llm_provider == "anthropic":
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not all([mongodb_uri, voyage_ai_key, anthropic_api_key]):
+            raise ValueError("Missing required environment variables for Anthropic")
+        llm_api_key = anthropic_api_key
+        llm_endpoint = None
+        llm_model = os.getenv("ANTHROPIC_MODEL", "claude-4-sonnet")
+    else:
+        raise ValueError(f"Unsupported LLM provider: {llm_provider}. Supported: azure_openai, openai, anthropic")
 
     # Initialize components
     context.database_manager = DatabaseManager(
@@ -60,9 +83,10 @@ async def app_lifespan(_: FastMCP):
 
     context.embedding_manager = EmbeddingManager(voyage_ai_key)
     context.llm_service = LLMService(
-        azure_openai_key,
-        azure_openai_endpoint,
-        os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+        provider=llm_provider,
+        api_key=llm_api_key,
+        endpoint=llm_endpoint,
+        model=llm_model
     )
 
     context.prompt_processor = PromptProcessor(context.embedding_manager, context.llm_service)
