@@ -86,7 +86,7 @@ Upon successful completion of a task with a prompt, always ask if I want to upda
 
 ```
 
-This ensures that the LLM saves, checks, and uses your existing prompts for tasks.
+This helps ensure that the LLM runs the relevant tools without you explicitly asking.
 
 > **💡 Tip**: For enhanced MongoDB management, consider using the [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server) alongside this prompt saver. It provides direct MongoDB operations and can help you manage your prompt database more effectively.
 
