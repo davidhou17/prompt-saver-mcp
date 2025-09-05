@@ -4,14 +4,13 @@ MCP server that converts successful conversation threads into prompts that can b
 
 Based on the principle that the most important artifact of your LLM interactions is what you did to produce the results, not the results themselves (see [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4)). And also considering that LLMs are probably already better prompt engineers than humans.
 
-## Demo
-
-[![Watch the demo video](https://raw.githubusercontent.com/davidhou17/prompt-saver-mcp/main/demo/thumbnail.jpg)](https://raw.githubusercontent.com/davidhou17/prompt-saver-mcp/main/demo/prompt%20saver%20demo.mp4)
+https://github.com/user-attachments/assets/d2e90767-c6f2-44b7-a216-1d9e103e968a
 
 ## Tools
 
 ### `save_prompt`
 Summarizes, categorizes, and converts conversation history into a markdown formatted prompt template.
+
 Run upon completion of a successful complex task to build your prompt library.
 
 **Parameters:**
