@@ -1,8 +1,23 @@
 # Prompt Saver MCP Server
 
-MCP server that converts successful conversation threads into prompts that can be used for future tasks. 
+MCP server that converts successful conversation threads into prompts that can be used for future tasks.
 
 Based on the principle that the most important artifact of your LLM interactions is what you did to produce the results, not the results themselves (see [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4)). And also considering that LLMs are probably already better prompt engineers than humans.
+
+## Features
+
+- **Flexible Search Options**: Semantic search with embeddings (when available) or text-based search
+- **Use Case Categorization**: Automatically categorizes and searches prompts by use case
+- **Multiple LLM Providers**: Support for Azure OpenAI, OpenAI, and Anthropic
+- **Robust Fallbacks**: Gracefully handles missing API keys and services
+
+## Search Behavior
+
+The server provides multiple search methods that adapt based on available services:
+
+- **With Voyage API Key**: `search_prompts` uses semantic search for the most relevant results
+- **Without Voyage API Key**: `search_prompts` falls back to MongoDB text search
+- **Always Available**: `search_prompts_by_use_case` provides category-based search regardless of API keys
 
 https://github.com/user-attachments/assets/d2e90767-c6f2-44b7-a216-1d9e103e968a
 
@@ -18,8 +33,8 @@ Run upon completion of a successful complex task to build your prompt library.
 - `task_description` (optional string): Description of the task being performed
 - `context_info` (optional string): Additional context about the conversation
 
-### `use_prompt`
-Retrieves prompts from the database using vector search and returns the 3 most relevant prompts for user selection. 
+### `search_prompts`
+Retrieves prompts from the database using semantic search (if Voyage API key is available) or text search as fallback. Returns the most relevant prompts for user selection.
 
 **Parameters:**
 - `query` (string): Description of the problem or task you need help with
@@ -51,7 +66,7 @@ Get detailed information about a specific prompt including its full template, hi
 - `prompt_id` (string): ID of the prompt to retrieve
 
 ### `search_prompts_by_use_case`
-Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'data-analysis'). Useful for browsing prompts within specific domains.
+Search for prompts by their use case category (e.g., 'code-gen', 'text-gen', 'data-analysis'). Efficient category-based search that works independently of embedding services.
 
 **Parameters:**
 - `use_case` (string): The use case category to search for
@@ -111,7 +126,7 @@ This helps ensure that the LLM runs the relevant tools without you explicitly as
 3. **Set up MongoDB Atlas:**
    - Create a MongoDB Atlas cluster
    - Create a database named `prompt_saver`
-   - Create a vector search index on the `embedding` field (2048 dimensions, dotProduct similarity)
+   - (Optional) Create a vector search index on the `embedding` field (2048 dimensions, dotProduct similarity) for semantic search
 
 4. **Configure environment variables:**
    ```bash
@@ -121,7 +136,9 @@ This helps ensure that the LLM runs the relevant tools without you explicitly as
 
    Required for all configurations:
    - `MONGODB_URI`: MongoDB Atlas connection string
-   - `VOYAGE_AI_API_KEY`: Voyage AI API key for embeddings
+
+   Optional:
+   - `VOYAGE_AI_API_KEY`: Voyage AI API key (enables semantic search)
 
    Choose one LLM provider:
    - **Azure OpenAI**: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
@@ -138,7 +155,7 @@ This helps ensure that the LLM runs the relevant tools without you explicitly as
 | `MONGODB_URI` | MongoDB Atlas connection URI | Required |
 | `MONGODB_DATABASE` | Database name | `prompt_saver` |
 | `MONGODB_COLLECTION` | Collection name | `prompts` |
-| `VOYAGE_AI_API_KEY` | Voyage AI API key | Required |
+| `VOYAGE_AI_API_KEY` | Voyage AI API key (enables semantic search) | Optional |
 | `VOYAGE_AI_EMBEDDING_MODEL` | Embedding model | `voyage-3-large` |
 
 #### LLM Provider Configuration
@@ -268,7 +285,7 @@ Search for relevant prompts when starting a new task:
 
 ```python
 # Search for prompts
-result = use_prompt("I need help with data processing in Python")
+result = search_prompts("I need help with data processing in Python")
 
 # The tool will return the most relevant prompts and ask you to select one
 ```

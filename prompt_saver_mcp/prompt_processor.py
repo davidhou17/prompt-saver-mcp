@@ -19,7 +19,11 @@ class PromptProcessor:
         summary = await self.llm_service.generate_summary(conversation)
         prompt_template = await self.llm_service.create_prompt_template(conversation, use_case)
         history = await self.llm_service.extract_history_summary(conversation)
-        embedding = self.embedding_manager.embed(summary, "document")
+
+        # Generate embedding only if embedding manager is available
+        embedding = None
+        if self.embedding_manager and self.embedding_manager.is_available():
+            embedding = self.embedding_manager.embed(summary, "document")
 
         return PromptTemplate(
             use_case=use_case,

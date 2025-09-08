@@ -224,3 +224,39 @@ class DatabaseManager:
 
         except Exception:
             return False
+
+    async def search_prompts_by_use_case(self, use_case: str, limit: int = 5) -> List[PromptSearchResult]:
+        """Search prompts by use case category.
+
+        Args:
+            use_case: The use case category to search for
+            limit: Maximum number of results to return
+
+        Returns:
+            List of matching prompts sorted by last_updated (newest first)
+        """
+        if self.collection is None:
+            raise RuntimeError("Database not connected")
+
+        try:
+            cursor = self.collection.find(
+                {"use_case": use_case}
+            ).sort([("last_updated", -1)]).limit(limit)
+
+            results = []
+            async for doc in cursor:
+                result = PromptSearchResult(
+                    id=str(doc["_id"]),
+                    use_case=doc["use_case"],
+                    summary=doc["summary"],
+                    prompt_template=doc["prompt_template"],
+                    history=doc["history"],
+                    last_updated=doc["last_updated"],
+                    num_updates=doc["num_updates"]
+                )
+                results.append(result)
+
+            return results
+
+        except Exception:
+            return []

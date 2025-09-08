@@ -13,7 +13,7 @@ class PromptTemplate(BaseModel):
     summary: str
     prompt_template: str
     history: str
-    embedding: List[float]
+    embedding: Optional[List[float]] = None
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     num_updates: int = 0
     changelog: List[str] = Field(default_factory=list)

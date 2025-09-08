@@ -42,7 +42,7 @@ async def app_lifespan(_: FastMCP):
 
     # Get required environment variables
     mongodb_uri = os.getenv("MONGODB_URI")
-    voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")
+    voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")  # Optional
 
     # Determine LLM provider based on environment variables
     llm_provider = os.getenv("LLM_PROVIDER", "azure_openai").lower()
@@ -50,21 +50,21 @@ async def app_lifespan(_: FastMCP):
     if llm_provider == "azure_openai":
         azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
         azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        if not all([mongodb_uri, voyage_ai_key, azure_openai_key, azure_openai_endpoint]):
+        if not all([mongodb_uri, azure_openai_key, azure_openai_endpoint]):
             raise ValueError("Missing required environment variables for Azure OpenAI")
         llm_api_key = azure_openai_key
         llm_endpoint = azure_openai_endpoint
         llm_model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
     elif llm_provider == "openai":
         openai_api_key = os.getenv("OPENAI_API_KEY")
-        if not all([mongodb_uri, voyage_ai_key, openai_api_key]):
+        if not all([mongodb_uri, openai_api_key]):
             raise ValueError("Missing required environment variables for OpenAI")
         llm_api_key = openai_api_key
         llm_endpoint = None
         llm_model = os.getenv("OPENAI_MODEL", "gpt-4o")
     elif llm_provider == "anthropic":
         anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not all([mongodb_uri, voyage_ai_key, anthropic_api_key]):
+        if not all([mongodb_uri, anthropic_api_key]):
             raise ValueError("Missing required environment variables for Anthropic")
         llm_api_key = anthropic_api_key
         llm_endpoint = None
@@ -81,7 +81,8 @@ async def app_lifespan(_: FastMCP):
     )
     await context.database_manager.connect()
 
-    context.embedding_manager = EmbeddingManager(voyage_ai_key)
+    # Initialize embedding manager only if API key is provided
+    context.embedding_manager = EmbeddingManager(voyage_ai_key) if voyage_ai_key else None
     context.llm_service = LLMService(
         provider=llm_provider,
         api_key=llm_api_key,
@@ -172,17 +173,16 @@ async def save_prompt(
 
 
 @mcp.tool()
-async def use_prompt(ctx: Context, query: str, limit: int = 3) -> Dict[str, Any]:
-    """Search for relevant prompts to help with current task.
+async def search_prompts(ctx: Context, query: str, limit: int = 3) -> Dict[str, Any]:
+    """Search for relevant prompts to help with current task using text or semantic search.
 
-    **WHEN TO USE:** Call this tool at the beginning of conversations when users ask for help
-    with tasks that might have been solved before. This should be one of your first actions
-    when a user requests assistance.
+    **WHEN TO USE:** Call this tool when you want to search for prompts using natural language
+    queries. Works with both semantic search (if Voyage API key is available) and text search.
 
     **AUTO-TRIGGER CONDITIONS:**
-    - User asks for help with coding, data analysis, writing, or creative tasks
+    - User asks for help with specific problems or tasks
     - User mentions problems like "I need to...", "How do I...", "Help me create..."
-    - Any request that involves multi-step problem solving
+    - Any request that involves searching for similar past solutions
     - User asks for examples, templates, or guidance on complex tasks
 
     **FOLLOW-UP:** After presenting results, use get_prompt_details() to retrieve the full
@@ -218,7 +218,7 @@ async def use_prompt(ctx: Context, query: str, limit: int = 3) -> Dict[str, Any]
 async def get_prompt_details(ctx: Context, prompt_id: str) -> Dict[str, Any]:
     """Get detailed prompt information including full template.
 
-    **WHEN TO USE:** Call this tool immediately after a user selects a prompt from use_prompt()
+    **WHEN TO USE:** Call this tool immediately after a user selects a prompt from search_prompts()
     results. This retrieves the complete prompt template that you can then apply to their task.
 
     **AUTO-TRIGGER CONDITIONS:**
@@ -350,8 +350,8 @@ async def improve_prompt_from_feedback(
 async def search_prompts_by_use_case(ctx: Context, use_case: str, limit: int = 5) -> Dict[str, Any]:
     """Search for prompts by use case category for targeted task assistance.
 
-    **WHEN TO USE:** Call this tool when you want to find prompts for specific types of
-    tasks, or when the user's request clearly falls into a particular category.
+    **WHEN TO USE:** Primary search method for finding prompts by category.
+    Works independently of embedding services.
 
     **AUTO-TRIGGER CONDITIONS:**
     - User asks for help with coding tasks (use "code-gen")
@@ -359,6 +359,7 @@ async def search_prompts_by_use_case(ctx: Context, use_case: str, limit: int = 5
     - User wants creative writing assistance (use "creative")
     - User needs text generation help (use "text-gen")
     - User asks "show me all prompts for..." a specific type of task
+    - When you want to browse prompts by category
 
     **COMMON USE CASES:** 'code-gen', 'text-gen', 'data-analysis', 'creative', 'general'
 

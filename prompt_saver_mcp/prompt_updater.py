@@ -10,7 +10,7 @@ from .llm_service import LLMService
 class PromptUpdater:
     """Simple prompt updating."""
 
-    def __init__(self, database_manager: DatabaseManager, embedding_manager: EmbeddingManager, llm_service: LLMService):
+    def __init__(self, database_manager: DatabaseManager, embedding_manager: Optional[EmbeddingManager], llm_service: LLMService):
         self.database_manager = database_manager
         self.embedding_manager = embedding_manager
         self.llm_service = llm_service
@@ -21,7 +21,11 @@ class PromptUpdater:
 
         if update_data.summary:
             updates["summary"] = update_data.summary
-            updates["embedding"] = self.embedding_manager.embed(update_data.summary, "document")
+            # Only update embedding if embedding manager is available
+            if self.embedding_manager and self.embedding_manager.is_available():
+                embedding = self.embedding_manager.embed(update_data.summary, "document")
+                if embedding:
+                    updates["embedding"] = embedding
 
         if update_data.prompt_template:
             updates["prompt_template"] = update_data.prompt_template
@@ -61,9 +65,14 @@ class PromptUpdater:
 
             # Update the prompt with the improved version
             updates = {
-                "prompt_template": improved_prompt,
-                "embedding": self.embedding_manager.embed(current_prompt_data.summary, "document")
+                "prompt_template": improved_prompt
             }
+
+            # Only update embedding if embedding manager is available
+            if self.embedding_manager and self.embedding_manager.is_available():
+                embedding = self.embedding_manager.embed(current_prompt_data.summary, "document")
+                if embedding:
+                    updates["embedding"] = embedding
 
             change_description = f"AI-improved based on feedback: {changes_summary}"
 
