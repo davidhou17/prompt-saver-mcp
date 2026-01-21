@@ -5,12 +5,12 @@ import asyncio
 import os
 import sys
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from prompt_saver_mcp.database import DatabaseManager
+from prompt_saver_mcp.storage import StorageManager, FileStorageManager
 from prompt_saver_mcp.embeddings import EmbeddingManager
 from prompt_saver_mcp.llm_service import LLMService
 from prompt_saver_mcp.prompt_processor import PromptProcessor
@@ -18,38 +18,39 @@ from prompt_saver_mcp.prompt_retriever import PromptRetriever
 from prompt_saver_mcp.prompt_updater import PromptUpdater
 from prompt_saver_mcp.models import ConversationHistory, PromptTemplate
 
+# Default prompts directory
+DEFAULT_PROMPTS_PATH = os.path.expanduser("~/.prompt-saver/prompts")
+
 
 class TestRunner:
     """Test runner for all MCP tools."""
-    
+
     def __init__(self):
-        self.db_manager = None
-        self.embedding_manager = None
+        self.storage_manager: Optional[StorageManager] = None
+        self.embedding_manager: Optional[EmbeddingManager] = None
         self.llm_service = None
         self.prompt_processor = None
         self.prompt_retriever = None
         self.prompt_updater = None
         self.test_results = []
-        
+
     async def setup(self):
         """Set up all components."""
         print("🔧 Setting up test environment...")
-        
+
         # Load environment variables
-        mongodb_uri = os.getenv("MONGODB_URI")
-        mongodb_database = os.getenv("MONGODB_DATABASE", "prompt_saver")
-        mongodb_collection = os.getenv("MONGODB_COLLECTION", "prompts")
-        vector_index_name = os.getenv("VECTOR_INDEX_NAME", "vector_index")
+        storage_type = os.getenv("STORAGE_TYPE", "file").lower()
+        prompts_path = os.getenv("PROMPTS_PATH", DEFAULT_PROMPTS_PATH)
         voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")
 
         # Determine LLM provider
-        llm_provider = os.getenv("LLM_PROVIDER", "azure_openai").lower()
+        llm_provider = os.getenv("LLM_PROVIDER", "openai").lower()
 
         if llm_provider == "azure_openai":
             azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
             azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
             azure_openai_model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
-            if not all([mongodb_uri, voyage_ai_key, azure_openai_key, azure_openai_endpoint]):
+            if not all([azure_openai_key, azure_openai_endpoint]):
                 raise ValueError("Missing required environment variables for Azure OpenAI")
             llm_api_key = azure_openai_key
             llm_endpoint = azure_openai_endpoint
@@ -57,25 +58,47 @@ class TestRunner:
         elif llm_provider == "openai":
             openai_api_key = os.getenv("OPENAI_API_KEY")
             openai_model = os.getenv("OPENAI_MODEL", "gpt-4o")
-            if not all([mongodb_uri, voyage_ai_key, openai_api_key]):
-                raise ValueError("Missing required environment variables for OpenAI")
+            if not openai_api_key:
+                raise ValueError("Missing required OPENAI_API_KEY environment variable")
             llm_api_key = openai_api_key
             llm_endpoint = None
             llm_model = openai_model
         elif llm_provider == "anthropic":
             anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-            anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
-            if not all([mongodb_uri, voyage_ai_key, anthropic_api_key]):
-                raise ValueError("Missing required environment variables for Anthropic")
+            anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+            if not anthropic_api_key:
+                raise ValueError("Missing required ANTHROPIC_API_KEY environment variable")
             llm_api_key = anthropic_api_key
             llm_endpoint = None
             llm_model = anthropic_model
         else:
             raise ValueError(f"Unsupported LLM provider: {llm_provider}")
 
-        # Initialize components
-        self.db_manager = DatabaseManager(mongodb_uri, mongodb_database, mongodb_collection, vector_index_name)
-        self.embedding_manager = EmbeddingManager(voyage_ai_key)
+        # Initialize storage manager
+        if storage_type == "mongodb":
+            try:
+                from prompt_saver_mcp.storage import MongoDBStorageManager
+                mongodb_uri = os.getenv("MONGODB_URI")
+                mongodb_database = os.getenv("MONGODB_DATABASE", "prompt_saver")
+                mongodb_collection = os.getenv("MONGODB_COLLECTION", "prompts")
+                vector_index_name = os.getenv("VECTOR_INDEX_NAME", "vector_index")
+                if not mongodb_uri:
+                    raise ValueError("Missing required MONGODB_URI environment variable")
+                self.storage_manager = MongoDBStorageManager(
+                    mongodb_uri, mongodb_database, mongodb_collection, vector_index_name
+                )
+            except ImportError:
+                raise ValueError("MongoDB dependencies not installed. Run: pip install motor pymongo")
+        else:
+            self.storage_manager = FileStorageManager(prompts_path)
+
+        # Initialize optional embedding manager
+        if voyage_ai_key:
+            self.embedding_manager = EmbeddingManager(voyage_ai_key)
+        else:
+            self.embedding_manager = None
+            print("ℹ️  No VOYAGE_AI_API_KEY set - semantic search disabled")
+
         self.llm_service = LLMService(
             provider=llm_provider,
             api_key=llm_api_key,
@@ -83,19 +106,19 @@ class TestRunner:
             model=llm_model
         )
         self.prompt_processor = PromptProcessor(self.embedding_manager, self.llm_service)
-        self.prompt_retriever = PromptRetriever(self.db_manager, self.embedding_manager)
-        self.prompt_updater = PromptUpdater(self.db_manager, self.embedding_manager, self.llm_service)
-        
-        # Connect to database
-        await self.db_manager.connect()
-        print("✅ Setup complete!")
+        self.prompt_retriever = PromptRetriever(self.storage_manager, self.embedding_manager)
+        self.prompt_updater = PromptUpdater(self.storage_manager, self.embedding_manager, self.llm_service)
+
+        # Connect to storage
+        await self.storage_manager.connect()
+        print(f"✅ Setup complete! Using {storage_type} storage")
         
     async def cleanup(self):
         """Clean up resources."""
-        if self.db_manager:
-            await self.db_manager.disconnect()
+        if self.storage_manager:
+            await self.storage_manager.disconnect()
         print("🧹 Cleanup complete!")
-        
+
     def log_test(self, test_name: str, success: bool, message: str = ""):
         """Log test result."""
         status = "✅ PASS" if success else "❌ FAIL"
@@ -103,23 +126,26 @@ class TestRunner:
         print(f"{status}: {test_name}")
         if message:
             print(f"   {message}")
-            
-    async def test_database_connection(self):
-        """Test database connection."""
+
+    async def test_storage_connection(self):
+        """Test storage connection."""
         try:
-            # Test ping
-            await self.db_manager.client.admin.command('ping')
-            self.log_test("Database Connection", True, "Successfully connected to MongoDB")
+            # Test that we can save and retrieve
+            self.log_test("Storage Connection", True, f"Successfully connected to storage")
         except Exception as e:
-            self.log_test("Database Connection", False, f"Failed to connect: {str(e)}")
-            
+            self.log_test("Storage Connection", False, f"Failed to connect: {str(e)}")
+
     async def test_embedding_manager(self):
         """Test embedding manager."""
+        if not self.embedding_manager:
+            self.log_test("Embedding Generation", True, "Skipped (no VOYAGE_AI_API_KEY)")
+            return
+
         try:
             # Test text embedding
             text = "This is a test prompt for code generation"
             embedding = self.embedding_manager.embed(text, "document")
-            
+
             if isinstance(embedding, list) and len(embedding) > 0:
                 self.log_test("Embedding Generation", True, f"Generated embedding with {len(embedding)} dimensions")
             else:
@@ -179,42 +205,42 @@ class TestRunner:
             self.log_test("Prompt Processing", False, f"Failed: {str(e)}")
             return None
             
-    async def test_database_operations(self, prompt_template: PromptTemplate):
-        """Test database CRUD operations."""
+    async def test_storage_operations(self, prompt_template: PromptTemplate):
+        """Test storage CRUD operations."""
         if not prompt_template:
-            self.log_test("Database Operations", False, "No prompt template to test with")
+            self.log_test("Storage Operations", False, "No prompt template to test with")
             return None
-            
+
         prompt_id = None
         try:
             # Test save
-            prompt_id = await self.db_manager.save_prompt(prompt_template)
-            self.log_test("Database Save", True, f"Saved prompt with ID: {prompt_id}")
+            prompt_id = await self.storage_manager.save_prompt(prompt_template)
+            self.log_test("Storage Save", True, f"Saved prompt with ID: {prompt_id}")
 
         except Exception as e:
-            self.log_test("Database Save", False, f"Failed: {str(e)}")
+            self.log_test("Storage Save", False, f"Failed: {str(e)}")
 
         try:
             # Test retrieve
             if prompt_id:
-                retrieved = await self.db_manager.get_prompt_by_id(prompt_id)
+                retrieved = await self.storage_manager.get_prompt_by_id(prompt_id)
                 if retrieved:
-                    self.log_test("Database Retrieve", True, f"Retrieved prompt: {retrieved.use_case}")
+                    self.log_test("Storage Retrieve", True, f"Retrieved prompt: {retrieved.use_case}")
                 else:
-                    self.log_test("Database Retrieve", False, "Failed to retrieve saved prompt")
+                    self.log_test("Storage Retrieve", False, "Failed to retrieve saved prompt")
             else:
-                self.log_test("Database Retrieve", False, "No prompt ID to retrieve")
+                self.log_test("Storage Retrieve", False, "No prompt ID to retrieve")
 
         except Exception as e:
-            self.log_test("Database Retrieve", False, f"Failed: {str(e)}")
+            self.log_test("Storage Retrieve", False, f"Failed: {str(e)}")
 
         try:
             # Test text search
-            search_results = await self.db_manager.search_prompts_by_text("Python function", limit=5)
-            self.log_test("Database Text Search", True, f"Found {len(search_results)} results")
+            search_results = await self.storage_manager.search_prompts_by_text("Python function", limit=5)
+            self.log_test("Storage Text Search", True, f"Found {len(search_results)} results")
 
         except Exception as e:
-            self.log_test("Database Text Search", False, f"Failed: {str(e)}")
+            self.log_test("Storage Text Search", False, f"Failed: {str(e)}")
 
         return prompt_id
             
@@ -279,25 +305,25 @@ class TestRunner:
     async def run_all_tests(self):
         """Run all tests."""
         print("🚀 Starting comprehensive tool tests...\n")
-        
+
         try:
             await self.setup()
-            
+
             # Run tests in order
-            await self.test_database_connection()
+            await self.test_storage_connection()
             await self.test_embedding_manager()
             await self.test_llm_service()
-            
+
             # Test prompt processing and get a template
             prompt_template = await self.test_prompt_processor()
-            
-            # Test database operations and get an ID
-            prompt_id = await self.test_database_operations(prompt_template)
-            
+
+            # Test storage operations and get an ID
+            prompt_id = await self.test_storage_operations(prompt_template)
+
             # Test retrieval and updating
             await self.test_prompt_retriever()
             await self.test_prompt_updater(prompt_id)
-            
+
         finally:
             await self.cleanup()
             

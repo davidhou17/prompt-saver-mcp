@@ -6,6 +6,27 @@ Based on the principle that the most important artifact of your LLM interactions
 
 https://github.com/user-attachments/assets/d2e90767-c6f2-44b7-a216-1d9e103e968a
 
+## Quick Start
+
+**Minimal setup - just needs an LLM API key:**
+
+```bash
+# Clone and install
+git clone <repository-url>
+cd prompt-saver-mcp
+uv sync
+
+# Set your LLM API key (choose one)
+export OPENAI_API_KEY="your-key"          # For OpenAI
+# or
+export ANTHROPIC_API_KEY="your-key"       # For Anthropic
+# or
+export AZURE_OPENAI_API_KEY="your-key"    # For Azure OpenAI
+export AZURE_OPENAI_ENDPOINT="your-endpoint"
+```
+
+Prompts are stored as readable markdown files in `~/.prompt-saver/prompts/` by default.
+
 ## Tools
 
 ### `save_prompt`
@@ -19,7 +40,7 @@ Run upon completion of a successful complex task to build your prompt library.
 - `context_info` (optional string): Additional context about the conversation
 
 ### `search_prompts`
-Retrieves prompts from the database using semantic search (if Voyage API key is available) or text search as fallback. Returns the most relevant prompts for user selection.
+Retrieves prompts using text search (or semantic search if Voyage API key is available). Returns the most relevant prompts for user selection.
 
 **Parameters:**
 - `query` (string): Description of the problem or task you need help with
@@ -91,8 +112,6 @@ Upon successful completion of a task with a prompt, always ask if I want to upda
 
 This helps ensure that the LLM runs the relevant tools without you explicitly asking.
 
-> **💡 Tip**: For enhanced MongoDB management, consider using the [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server) alongside this prompt saver. It provides direct MongoDB operations and can help you manage your prompt database more effectively.
-
 ## Installation
 
 1. **Clone the repository:**
@@ -108,50 +127,48 @@ This helps ensure that the LLM runs the relevant tools without you explicitly as
    pip install -e .
    ```
 
-3. **Set up MongoDB Atlas:**
-   - Create a MongoDB Atlas cluster
-   - Create a database named `prompt_saver`
-   - (Optional) Create a vector search index on the `embedding` field (2048 dimensions, dotProduct similarity) for semantic search
-
-4. **Configure environment variables:**
+3. **Set your LLM API key** (choose one provider):
    ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and MongoDB Atlas URI
+   # OpenAI (default)
+   export OPENAI_API_KEY="your-key"
+
+   # Or Anthropic
+   export LLM_PROVIDER="anthropic"
+   export ANTHROPIC_API_KEY="your-key"
+
+   # Or Azure OpenAI
+   export LLM_PROVIDER="azure_openai"
+   export AZURE_OPENAI_API_KEY="your-key"
+   export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
    ```
 
-   Required for all configurations:
-   - `MONGODB_URI`: MongoDB Atlas connection string
-
-   Optional:
-   - `VOYAGE_AI_API_KEY`: Voyage AI API key (enables semantic search)
-
-   Choose one LLM provider:
-   - **Azure OpenAI**: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
-   - **OpenAI**: `OPENAI_API_KEY`
-   - **Anthropic**: `ANTHROPIC_API_KEY`
+That's it! Prompts are stored as markdown files in `~/.prompt-saver/prompts/` by default.
 
 ## Configuration
 
 ### Environment Variables
 
-#### Core Configuration
+#### Storage Configuration
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MONGODB_URI` | MongoDB Atlas connection URI | Required |
-| `MONGODB_DATABASE` | Database name | `prompt_saver` |
-| `MONGODB_COLLECTION` | Collection name | `prompts` |
-| `VOYAGE_AI_API_KEY` | Voyage AI API key (enables semantic search) | Optional |
-| `VOYAGE_AI_EMBEDDING_MODEL` | Embedding model | `voyage-3-large` |
+| `STORAGE_TYPE` | Storage backend: `file` or `mongodb` | `file` |
+| `PROMPTS_PATH` | Directory for prompt files (when STORAGE_TYPE=file) | `~/.prompt-saver/prompts` |
 
 #### LLM Provider Configuration
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LLM_PROVIDER` | LLM provider: `azure_openai`, `openai`, or `anthropic` | `azure_openai` |
+| `LLM_PROVIDER` | LLM provider: `openai`, `azure_openai`, or `anthropic` | `openai` |
 
 **Provider Options:**
+- **OpenAI**: Direct access to latest models with simple API key setup (default)
 - **Azure OpenAI**: Enterprise-grade with enhanced security and compliance
-- **OpenAI**: Direct access to latest models with simple API key setup
 - **Anthropic**: Claude models with strong reasoning capabilities
+
+#### OpenAI (default, when LLM_PROVIDER=openai)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | Required |
+| `OPENAI_MODEL` | Model name | `gpt-4o` |
 
 #### Azure OpenAI (when LLM_PROVIDER=azure_openai)
 | Variable | Description | Default |
@@ -160,23 +177,30 @@ This helps ensure that the LLM runs the relevant tools without you explicitly as
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | Required |
 | `AZURE_OPENAI_MODEL` | Model deployment name | `gpt-4o` |
 
-#### OpenAI (when LLM_PROVIDER=openai)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | Required |
-| `OPENAI_MODEL` | Model name | `gpt-4o` |
-
 #### Anthropic (when LLM_PROVIDER=anthropic)
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | Anthropic API key | Required |
 | `ANTHROPIC_MODEL` | Model name | `claude-sonnet-4-20250514` |
 
+#### MongoDB Storage (optional, when STORAGE_TYPE=mongodb)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MONGODB_URI` | MongoDB connection URI | Required |
+| `MONGODB_DATABASE` | Database name | `prompt_saver` |
+| `MONGODB_COLLECTION` | Collection name | `prompts` |
+| `VECTOR_INDEX_NAME` | Atlas vector search index name | `vector_index` |
+
+#### Embeddings (optional)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VOYAGE_AI_API_KEY` | Voyage AI API key (enables semantic search) | Optional |
+
 ### Claude Desktop Integration
 
-Add to your Claude Desktop configuration file. Choose one of the following configurations based on your preferred LLM provider:
+Add to your Claude Desktop configuration file:
 
-#### Azure OpenAI Configuration
+#### Simple Configuration (File Storage + OpenAI)
 ```json
 {
   "mcpServers": {
@@ -185,20 +209,14 @@ Add to your Claude Desktop configuration file. Choose one of the following confi
       "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
       "cwd": "/path/to/your/prompt-saver-mcp",
       "env": {
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
-        "MONGODB_DATABASE": "prompt_saver",
-        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
-        "LLM_PROVIDER": "azure_openai",
-        "AZURE_OPENAI_API_KEY": "your_azure_openai_api_key_here",
-        "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com/",
-        "AZURE_OPENAI_MODEL": "gpt-4o"
+        "OPENAI_API_KEY": "your_openai_api_key_here"
       }
     }
   }
 }
 ```
 
-#### OpenAI Configuration
+#### With Custom Prompts Directory
 ```json
 {
   "mcpServers": {
@@ -207,19 +225,15 @@ Add to your Claude Desktop configuration file. Choose one of the following confi
       "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
       "cwd": "/path/to/your/prompt-saver-mcp",
       "env": {
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
-        "MONGODB_DATABASE": "prompt_saver",
-        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
-        "LLM_PROVIDER": "openai",
         "OPENAI_API_KEY": "your_openai_api_key_here",
-        "OPENAI_MODEL": "gpt-4o"
+        "PROMPTS_PATH": "/path/to/your/prompts"
       }
     }
   }
 }
 ```
 
-#### Anthropic Configuration
+#### With Anthropic
 ```json
 {
   "mcpServers": {
@@ -228,19 +242,34 @@ Add to your Claude Desktop configuration file. Choose one of the following confi
       "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
       "cwd": "/path/to/your/prompt-saver-mcp",
       "env": {
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
-        "MONGODB_DATABASE": "prompt_saver",
-        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
         "LLM_PROVIDER": "anthropic",
-        "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
-        "ANTHROPIC_MODEL": "claude-sonnet-4-20250514"
+        "ANTHROPIC_API_KEY": "your_anthropic_api_key_here"
       }
     }
   }
 }
 ```
 
-> **Note**: For Anthropic support, install the anthropic package: `pip install anthropic`
+#### Advanced: MongoDB Storage + Semantic Search
+```json
+{
+  "mcpServers": {
+    "prompt-saver": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
+      "cwd": "/path/to/your/prompt-saver-mcp",
+      "env": {
+        "STORAGE_TYPE": "mongodb",
+        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
+        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
+        "OPENAI_API_KEY": "your_openai_api_key_here"
+      }
+    }
+  }
+}
+```
+
+> **Note**: For MongoDB storage, install additional dependencies: `pip install motor pymongo`
 
 ## Usage Examples
 
@@ -321,9 +350,49 @@ result = search_prompts_by_use_case("code-gen", limit=5)
 result = search_prompts_by_use_case("data-analysis", limit=3)
 ```
 
-## Database Schema
+## Prompt Storage Format
 
-Each prompt is stored with the following structure:
+### File Storage (Default)
+
+Prompts are stored as markdown files with YAML frontmatter:
+
+```
+~/.prompt-saver/prompts/
+├── code-gen/
+│   ├── python-csv-parser-abc12345.md
+│   └── react-component-generator-def67890.md
+├── data-analysis/
+│   └── pandas-data-cleaning-ghi11111.md
+└── general/
+    └── project-planning-template-jkl22222.md
+```
+
+Each file has this structure:
+
+```markdown
+---
+id: abc12345-1234-5678-9abc-def012345678
+use_case: code-gen
+summary: Python CSV parser with error handling
+created: 2025-01-21T10:00:00+00:00
+last_updated: 2025-01-21T10:00:00+00:00
+num_updates: 0
+changelog:
+  - '2025-01-21T10:00:00+00:00: Initial creation'
+---
+
+# History
+
+Steps taken to create this prompt...
+
+# Prompt Template
+
+You are an expert Python developer...
+```
+
+### MongoDB Storage (Optional)
+
+When using MongoDB (`STORAGE_TYPE=mongodb`), prompts are stored as documents:
 
 ```python
 {
@@ -332,7 +401,7 @@ Each prompt is stored with the following structure:
     "summary": str,   # Summary of the prompt and its use case
     "prompt_template": str,  # Universal problem-solving prompt template
     "history": str,   # Summary of steps taken and end result
-    "embedding": List[float],  # Vector embeddings of the summary
+    "embedding": List[float],  # Vector embeddings (optional, for semantic search)
     "last_updated": datetime,
     "num_updates": int,
     "changelog": List[str]  # List of changes made to this prompt

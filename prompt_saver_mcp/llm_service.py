@@ -2,7 +2,7 @@
 
 from typing import Optional
 from openai import AsyncOpenAI, AsyncAzureOpenAI
-from .models import ConversationHistory
+from .models import ConversationHistory, UseCase
 
 try:
     import anthropic
@@ -77,11 +77,12 @@ class LLMService:
     async def categorize_conversation(self, conversation: ConversationHistory) -> str:
         """Categorize conversation into use case."""
         text = self._extract_text(conversation)
+        categories = ", ".join(UseCase.values())
 
         content = await self._make_completion(
             messages=[{
                 "role": "user",
-                "content": f"""Categorize this conversation into one category: code-gen, text-gen, data-analysis, creative, or general.
+                "content": f"""Categorize this conversation into one category: {categories}.
 
 Conversation: {text[:1000]}
 
@@ -91,9 +92,8 @@ Category:"""
             max_tokens=20
         )
 
-        category = content.lower()
-        valid = ["code-gen", "text-gen", "data-analysis", "creative", "general"]
-        return category if category in valid else "general"
+        category = content.lower().strip()
+        return UseCase.from_string(category).value
     
     async def generate_summary(self, conversation: ConversationHistory) -> str:
         """Generate conversation summary."""

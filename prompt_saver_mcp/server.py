@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP, Context
 
-from .database import DatabaseManager
+from .storage import StorageManager, FileStorageManager
 from .embeddings import EmbeddingManager
 from .llm_service import LLMService
 from .models import ConversationHistory, PromptUpdate
@@ -22,17 +22,96 @@ load_dotenv()
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# Default prompts directory
+DEFAULT_PROMPTS_PATH = os.path.expanduser("~/.prompt-saver/prompts")
+
 
 class AppContext:
     """Application context."""
 
     def __init__(self):
-        self.database_manager = None
-        self.embedding_manager = None
-        self.llm_service = None
-        self.prompt_processor = None
-        self.prompt_retriever = None
-        self.prompt_updater = None
+        self.storage_manager: Optional[StorageManager] = None
+        self.embedding_manager: Optional[EmbeddingManager] = None
+        self.llm_service: Optional[LLMService] = None
+        self.prompt_processor: Optional[PromptProcessor] = None
+        self.prompt_retriever: Optional[PromptRetriever] = None
+        self.prompt_updater: Optional[PromptUpdater] = None
+
+
+def _get_llm_config() -> tuple[str, str, Optional[str], str]:
+    """Get LLM configuration from environment variables.
+
+    Returns:
+        Tuple of (provider, api_key, endpoint, model)
+    """
+    llm_provider = os.getenv("LLM_PROVIDER", "openai").lower()
+
+    if llm_provider == "azure_openai":
+        azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
+        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        if not all([azure_openai_key, azure_openai_endpoint]):
+            raise ValueError("Missing AZURE_OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT")
+        return (
+            llm_provider,
+            azure_openai_key,
+            azure_openai_endpoint,
+            os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+        )
+    elif llm_provider == "openai":
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            raise ValueError("Missing OPENAI_API_KEY")
+        return (
+            llm_provider,
+            openai_api_key,
+            None,
+            os.getenv("OPENAI_MODEL", "gpt-4o")
+        )
+    elif llm_provider == "anthropic":
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            raise ValueError("Missing ANTHROPIC_API_KEY")
+        return (
+            llm_provider,
+            anthropic_api_key,
+            None,
+            os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        )
+    else:
+        raise ValueError(f"Unsupported LLM_PROVIDER: {llm_provider}. Use: openai, azure_openai, or anthropic")
+
+
+def _create_storage_manager() -> StorageManager:
+    """Create the appropriate storage manager based on configuration.
+
+    Uses file storage by default. Set STORAGE_TYPE=mongodb to use MongoDB.
+    """
+    storage_type = os.getenv("STORAGE_TYPE", "file").lower()
+
+    if storage_type == "mongodb":
+        mongodb_uri = os.getenv("MONGODB_URI")
+        if not mongodb_uri:
+            raise ValueError("MONGODB_URI required when STORAGE_TYPE=mongodb")
+
+        # Import MongoDB storage (may raise ImportError if not installed)
+        try:
+            from .storage.mongodb_storage import MongoDBStorageManager
+        except ImportError:
+            raise ImportError(
+                "MongoDB dependencies not installed. "
+                "Install with: pip install motor pymongo"
+            )
+
+        return MongoDBStorageManager(
+            mongodb_uri=mongodb_uri,
+            database_name=os.getenv("MONGODB_DATABASE", "prompt_saver"),
+            collection_name=os.getenv("MONGODB_COLLECTION", "prompts"),
+            vector_index_name=os.getenv("VECTOR_INDEX_NAME", "vector_index")
+        )
+    else:
+        # Default: file storage
+        prompts_path = os.getenv("PROMPTS_PATH", DEFAULT_PROMPTS_PATH)
+        return FileStorageManager(prompts_path)
 
 
 @asynccontextmanager
@@ -40,49 +119,18 @@ async def app_lifespan(_: FastMCP):
     """Manage application lifecycle."""
     context = AppContext()
 
-    # Get required environment variables
-    mongodb_uri = os.getenv("MONGODB_URI")
-    voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")  # Optional
+    # Get LLM configuration
+    llm_provider, llm_api_key, llm_endpoint, llm_model = _get_llm_config()
 
-    # Determine LLM provider based on environment variables
-    llm_provider = os.getenv("LLM_PROVIDER", "azure_openai").lower()
+    # Initialize storage (file-based by default, MongoDB optional)
+    context.storage_manager = _create_storage_manager()
+    await context.storage_manager.connect()
 
-    if llm_provider == "azure_openai":
-        azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
-        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        if not all([mongodb_uri, azure_openai_key, azure_openai_endpoint]):
-            raise ValueError("Missing required environment variables for Azure OpenAI")
-        llm_api_key = azure_openai_key
-        llm_endpoint = azure_openai_endpoint
-        llm_model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
-    elif llm_provider == "openai":
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        if not all([mongodb_uri, openai_api_key]):
-            raise ValueError("Missing required environment variables for OpenAI")
-        llm_api_key = openai_api_key
-        llm_endpoint = None
-        llm_model = os.getenv("OPENAI_MODEL", "gpt-4o")
-    elif llm_provider == "anthropic":
-        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not all([mongodb_uri, anthropic_api_key]):
-            raise ValueError("Missing required environment variables for Anthropic")
-        llm_api_key = anthropic_api_key
-        llm_endpoint = None
-        llm_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
-    else:
-        raise ValueError(f"Unsupported LLM provider: {llm_provider}. Supported: azure_openai, openai, anthropic")
-
-    # Initialize components
-    context.database_manager = DatabaseManager(
-        mongodb_uri,
-        os.getenv("MONGODB_DATABASE", "prompt_saver"),
-        os.getenv("MONGODB_COLLECTION", "prompts"),
-        os.getenv("VECTOR_INDEX_NAME", "vector_index")
-    )
-    await context.database_manager.connect()
-
-    # Initialize embedding manager only if API key is provided
+    # Initialize embedding manager only if Voyage API key is provided
+    voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")
     context.embedding_manager = EmbeddingManager(voyage_ai_key) if voyage_ai_key else None
+
+    # Initialize LLM service
     context.llm_service = LLMService(
         provider=llm_provider,
         api_key=llm_api_key,
@@ -90,15 +138,16 @@ async def app_lifespan(_: FastMCP):
         model=llm_model
     )
 
+    # Initialize processors
     context.prompt_processor = PromptProcessor(context.embedding_manager, context.llm_service)
-    context.prompt_retriever = PromptRetriever(context.database_manager, context.embedding_manager)
-    context.prompt_updater = PromptUpdater(context.database_manager, context.embedding_manager, context.llm_service)
+    context.prompt_retriever = PromptRetriever(context.storage_manager, context.embedding_manager)
+    context.prompt_updater = PromptUpdater(context.storage_manager, context.embedding_manager, context.llm_service)
 
     yield context
 
     # Cleanup
-    if context.database_manager:
-        await context.database_manager.disconnect()
+    if context.storage_manager:
+        await context.storage_manager.disconnect()
 
 
 # Create the MCP server
@@ -159,7 +208,7 @@ async def save_prompt(
         )
 
         prompt_template = await app_context.prompt_processor.analyze_conversation(conversation)
-        prompt_id = await app_context.database_manager.save_prompt(prompt_template)
+        prompt_id = await app_context.storage_manager.save_prompt(prompt_template)
 
         return {
             "success": True,
