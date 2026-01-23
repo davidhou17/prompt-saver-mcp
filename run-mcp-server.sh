@@ -45,6 +45,7 @@ UV_PATH=$(find_uv) || {
 "$UV_PATH" sync --quiet 2>/dev/null || true
 
 # Run the MCP server with stdio transport (default for MCP)
+# Use Python 3.12 explicitly to avoid compatibility issues with newer Python versions
 # Pass through any additional arguments from the command line
-exec "$UV_PATH" run python -m prompt_saver_mcp.server stdio "$@"
+exec "$UV_PATH" run --python 3.12 python -m prompt_saver_mcp.server stdio "$@"
 

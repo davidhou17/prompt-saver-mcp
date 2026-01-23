@@ -2,7 +2,13 @@
 
 import os
 from typing import List, Optional
-import voyageai
+
+try:
+    import voyageai
+    VOYAGEAI_AVAILABLE = True
+except ImportError:
+    voyageai = None  # type: ignore
+    VOYAGEAI_AVAILABLE = False
 
 
 class EmbeddingManager:
@@ -13,7 +19,7 @@ class EmbeddingManager:
         self.model = model
         self.client = None
 
-        if api_key:
+        if api_key and VOYAGEAI_AVAILABLE:
             os.environ["VOYAGE_API_KEY"] = api_key
             self.client = voyageai.Client()
 

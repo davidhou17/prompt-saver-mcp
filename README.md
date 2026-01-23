@@ -8,24 +8,30 @@ https://github.com/user-attachments/assets/d2e90767-c6f2-44b7-a216-1d9e103e968a
 
 ## Quick Start
 
-**Minimal setup - just needs an LLM API key:**
-
 ```bash
-# Clone and install
-git clone <repository-url>
+git clone https://github.com/davidhou17/prompt-saver-mcp.git
 cd prompt-saver-mcp
 uv sync
-
-# Set your LLM API key (choose one)
-export OPENAI_API_KEY="your-key"          # For OpenAI
-# or
-export ANTHROPIC_API_KEY="your-key"       # For Anthropic
-# or
-export AZURE_OPENAI_API_KEY="your-key"    # For Azure OpenAI
-export AZURE_OPENAI_ENDPOINT="your-endpoint"
 ```
 
-Prompts are stored as readable markdown files in `~/.prompt-saver/prompts/` by default.
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "prompt-saver": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
+      "cwd": "/path/to/prompt-saver-mcp",
+      "env": {
+        "OPENAI_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+Prompts are stored as markdown files in `~/.prompt-saver/prompts/` by default.
 
 ## Tools
 
@@ -112,164 +118,39 @@ Upon successful completion of a task with a prompt, always ask if I want to upda
 
 This helps ensure that the LLM runs the relevant tools without you explicitly asking.
 
-## Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd prompt-saver-mcp
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   uv sync
-   # or with pip:
-   pip install -e .
-   ```
-
-3. **Set your LLM API key** (choose one provider):
-   ```bash
-   # OpenAI (default)
-   export OPENAI_API_KEY="your-key"
-
-   # Or Anthropic
-   export LLM_PROVIDER="anthropic"
-   export ANTHROPIC_API_KEY="your-key"
-
-   # Or Azure OpenAI
-   export LLM_PROVIDER="azure_openai"
-   export AZURE_OPENAI_API_KEY="your-key"
-   export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-   ```
-
-That's it! Prompts are stored as markdown files in `~/.prompt-saver/prompts/` by default.
-
 ## Configuration
 
-### Environment Variables
+All configuration is done via environment variables in the `env` block of your MCP config.
 
-#### Storage Configuration
+### LLM Providers
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `STORAGE_TYPE` | Storage backend: `file` or `mongodb` | `file` |
-| `PROMPTS_PATH` | Directory for prompt files (when STORAGE_TYPE=file) | `~/.prompt-saver/prompts` |
-
-#### LLM Provider Configuration
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LLM_PROVIDER` | LLM provider: `openai`, `azure_openai`, or `anthropic` | `openai` |
-
-**Provider Options:**
-- **OpenAI**: Direct access to latest models with simple API key setup (default)
-- **Azure OpenAI**: Enterprise-grade with enhanced security and compliance
-- **Anthropic**: Claude models with strong reasoning capabilities
-
-#### OpenAI (default, when LLM_PROVIDER=openai)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | Required |
+| `LLM_PROVIDER` | `openai`, `azure_openai`, or `anthropic` | `openai` |
+| `OPENAI_API_KEY` | OpenAI API key | Required for OpenAI |
 | `OPENAI_MODEL` | Model name | `gpt-4o` |
-
-#### Azure OpenAI (when LLM_PROVIDER=azure_openai)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | Required |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | Required |
+| `ANTHROPIC_API_KEY` | Anthropic API key | Required for Anthropic |
+| `ANTHROPIC_MODEL` | Model name | `claude-sonnet-4-20250514` |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | Required for Azure |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | Required for Azure |
 | `AZURE_OPENAI_MODEL` | Model deployment name | `gpt-4o` |
 
-#### Anthropic (when LLM_PROVIDER=anthropic)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Anthropic API key | Required |
-| `ANTHROPIC_MODEL` | Model name | `claude-sonnet-4-20250514` |
+### Storage
 
-#### MongoDB Storage (optional, when STORAGE_TYPE=mongodb)
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection URI | Required |
+| `STORAGE_TYPE` | `file` or `mongodb` | `file` |
+| `PROMPTS_PATH` | Directory for prompt files | `~/.prompt-saver/prompts` |
+| `MONGODB_URI` | MongoDB connection URI | Required for MongoDB |
 | `MONGODB_DATABASE` | Database name | `prompt_saver` |
-| `MONGODB_COLLECTION` | Collection name | `prompts` |
-| `VECTOR_INDEX_NAME` | Atlas vector search index name | `vector_index` |
 
-#### Embeddings (optional)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VOYAGE_AI_API_KEY` | Voyage AI API key (enables semantic search) | Optional |
+### Optional
 
-### Claude Desktop Integration
+| Variable | Description |
+|----------|-------------|
+| `VOYAGE_AI_API_KEY` | Enables semantic search |
 
-Add to your Claude Desktop configuration file:
-
-#### Simple Configuration (File Storage + OpenAI)
-```json
-{
-  "mcpServers": {
-    "prompt-saver": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
-      "cwd": "/path/to/your/prompt-saver-mcp",
-      "env": {
-        "OPENAI_API_KEY": "your_openai_api_key_here"
-      }
-    }
-  }
-}
-```
-
-#### With Custom Prompts Directory
-```json
-{
-  "mcpServers": {
-    "prompt-saver": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
-      "cwd": "/path/to/your/prompt-saver-mcp",
-      "env": {
-        "OPENAI_API_KEY": "your_openai_api_key_here",
-        "PROMPTS_PATH": "/path/to/your/prompts"
-      }
-    }
-  }
-}
-```
-
-#### With Anthropic
-```json
-{
-  "mcpServers": {
-    "prompt-saver": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
-      "cwd": "/path/to/your/prompt-saver-mcp",
-      "env": {
-        "LLM_PROVIDER": "anthropic",
-        "ANTHROPIC_API_KEY": "your_anthropic_api_key_here"
-      }
-    }
-  }
-}
-```
-
-#### Advanced: MongoDB Storage + Semantic Search
-```json
-{
-  "mcpServers": {
-    "prompt-saver": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "prompt_saver_mcp.server", "stdio"],
-      "cwd": "/path/to/your/prompt-saver-mcp",
-      "env": {
-        "STORAGE_TYPE": "mongodb",
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/",
-        "VOYAGE_AI_API_KEY": "your_voyage_ai_api_key_here",
-        "OPENAI_API_KEY": "your_openai_api_key_here"
-      }
-    }
-  }
-}
-```
-
-> **Note**: For MongoDB storage, install additional dependencies: `pip install motor pymongo`
+> **Note**: For MongoDB storage, install with `uv sync --extra mongodb`
 
 ## Usage Examples
 
