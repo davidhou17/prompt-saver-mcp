@@ -4,7 +4,8 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional
+from functools import wraps
+from typing import Any, Callable, Dict, Optional
 
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP, Context
@@ -13,29 +14,20 @@ from .storage import StorageManager, FileStorageManager
 from .embeddings import EmbeddingManager
 from .llm_service import LLMService
 from .models import ConversationHistory, PromptUpdate
-from .prompt_processor import PromptProcessor
-from .prompt_retriever import PromptRetriever
-from .prompt_updater import PromptUpdater
+from .prompt_service import PromptService
 
 load_dotenv()
 
-# Set up logging
 logger = logging.getLogger(__name__)
-
-# Default prompts directory
-DEFAULT_PROMPTS_PATH = os.path.expanduser("~/.prompt-saver/prompts")
+DEFAULT_PROMPTS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "prompts")
 
 
 class AppContext:
-    """Application context."""
+    """Application context with unified prompt service."""
 
     def __init__(self):
-        self.storage_manager: Optional[StorageManager] = None
-        self.embedding_manager: Optional[EmbeddingManager] = None
-        self.llm_service: Optional[LLMService] = None
-        self.prompt_processor: Optional[PromptProcessor] = None
-        self.prompt_retriever: Optional[PromptRetriever] = None
-        self.prompt_updater: Optional[PromptUpdater] = None
+        self.storage: Optional[StorageManager] = None
+        self.prompts: Optional[PromptService] = None
 
 
 def _get_llm_config() -> tuple[str, str, Optional[str], str]:
@@ -122,32 +114,30 @@ async def app_lifespan(_: FastMCP):
     # Get LLM configuration
     llm_provider, llm_api_key, llm_endpoint, llm_model = _get_llm_config()
 
-    # Initialize storage (file-based by default, MongoDB optional)
-    context.storage_manager = _create_storage_manager()
-    await context.storage_manager.connect()
+    # Initialize storage
+    context.storage = _create_storage_manager()
+    await context.storage.connect()
 
-    # Initialize embedding manager only if Voyage API key is provided
+    # Initialize optional embedding manager
     voyage_ai_key = os.getenv("VOYAGE_AI_API_KEY")
-    context.embedding_manager = EmbeddingManager(voyage_ai_key) if voyage_ai_key else None
+    embedding_manager = EmbeddingManager(voyage_ai_key) if voyage_ai_key else None
 
     # Initialize LLM service
-    context.llm_service = LLMService(
+    llm_service = LLMService(
         provider=llm_provider,
         api_key=llm_api_key,
         endpoint=llm_endpoint,
         model=llm_model
     )
 
-    # Initialize processors
-    context.prompt_processor = PromptProcessor(context.embedding_manager, context.llm_service)
-    context.prompt_retriever = PromptRetriever(context.storage_manager, context.embedding_manager)
-    context.prompt_updater = PromptUpdater(context.storage_manager, context.embedding_manager, context.llm_service)
+    # Initialize unified prompt service
+    context.prompts = PromptService(context.storage, embedding_manager, llm_service)
 
     yield context
 
     # Cleanup
-    if context.storage_manager:
-        await context.storage_manager.disconnect()
+    if context.storage:
+        await context.storage.disconnect()
 
 
 # Create the MCP server
@@ -189,34 +179,29 @@ async def save_prompt(
         context_info: Optional context information
     """
     try:
-        # Try to parse as JSON first
+        # Parse messages from JSON or convert string to message format
         try:
             messages = json.loads(conversation_messages)
-            # Ensure it's a list
             if not isinstance(messages, list):
                 messages = [messages]
         except (json.JSONDecodeError, ValueError):
-            # If JSON parsing fails, treat as a simple string and convert to message format
             messages = [{"role": "user", "content": conversation_messages}]
 
-        app_context = ctx.request_context.lifespan_context
-
+        app: AppContext = ctx.request_context.lifespan_context
         conversation = ConversationHistory(
             messages=messages,
             context=context_info,
             task_description=task_description
         )
 
-        prompt_template = await app_context.prompt_processor.analyze_conversation(conversation)
-        prompt_id = await app_context.storage_manager.save_prompt(prompt_template)
+        prompt_id, template = await app.prompts.save_prompt(conversation)
 
         return {
             "success": True,
             "prompt_id": prompt_id,
-            "use_case": prompt_template.use_case,
-            "summary": prompt_template.summary
+            "use_case": template.use_case,
+            "summary": template.summary
         }
-
     except Exception as e:
         return {"error": str(e)}
 
@@ -238,27 +223,19 @@ async def search_prompts(ctx: Context, query: str, limit: int = 3) -> Dict[str, 
     template for the prompt the user selects.
     """
     try:
-        app_context = ctx.request_context.lifespan_context
-        results = await app_context.prompt_retriever.search_prompts(query, limit)
+        app: AppContext = ctx.request_context.lifespan_context
+        results = await app.prompts.search(query, limit)
 
         if not results:
             return {"results": [], "message": "No prompts found"}
 
-        selection_prompt = app_context.prompt_retriever.create_selection_prompt(results)
-
         return {
             "results": [
-                {
-                    "id": result.id,
-                    "use_case": result.use_case,
-                    "summary": result.summary,
-                    "score": result.score
-                }
-                for result in results
+                {"id": r.id, "use_case": r.use_case, "summary": r.summary, "score": r.score}
+                for r in results
             ],
-            "selection_prompt": selection_prompt
+            "selection_prompt": app.prompts.format_search_results(results)
         }
-
     except Exception as e:
         return {"error": str(e)}
 
@@ -278,8 +255,8 @@ async def get_prompt_details(ctx: Context, prompt_id: str) -> Dict[str, Any]:
     **FOLLOW-UP:** Use the retrieved prompt_template to guide your response to the user's request.
     """
     try:
-        app_context = ctx.request_context.lifespan_context
-        prompt = await app_context.prompt_retriever.get_prompt_by_id(prompt_id)
+        app: AppContext = ctx.request_context.lifespan_context
+        prompt = await app.prompts.get_by_id(prompt_id)
 
         if not prompt:
             return {"error": f"Prompt {prompt_id} not found"}
@@ -295,7 +272,6 @@ async def get_prompt_details(ctx: Context, prompt_id: str) -> Dict[str, Any]:
                 "num_updates": prompt.num_updates
             }
         }
-
     except Exception as e:
         return {"error": str(e)}
 
@@ -325,8 +301,7 @@ async def update_prompt(
     **ALTERNATIVE:** For AI-driven improvements based on feedback, use improve_prompt_from_feedback() instead.
     """
     try:
-        app_context = ctx.request_context.lifespan_context
-
+        app: AppContext = ctx.request_context.lifespan_context
         update_data = PromptUpdate(
             prompt_id=prompt_id,
             summary=summary,
@@ -335,10 +310,8 @@ async def update_prompt(
             use_case=use_case,
             change_description=change_description
         )
-
-        success = await app_context.prompt_updater.update_prompt(update_data)
+        success = await app.prompts.update(update_data)
         return {"success": success}
-
     except Exception as e:
         return {"error": str(e)}
 
@@ -374,22 +347,12 @@ async def improve_prompt_from_feedback(
         Dictionary indicating success or failure
     """
     try:
-        # Get application context
-        app_context = ctx.request_context.lifespan_context
-
-        # Improve the prompt
-        success = await app_context.prompt_updater.improve_prompt_from_feedback(
-            prompt_id, feedback, conversation_context
-        )
+        app: AppContext = ctx.request_context.lifespan_context
+        success = await app.prompts.improve_from_feedback(prompt_id, feedback, conversation_context)
 
         if success:
-            return {
-                "success": True,
-                "message": f"Successfully improved prompt {prompt_id} based on feedback"
-            }
-        else:
-            return {"error": f"Failed to improve prompt {prompt_id}"}
-
+            return {"success": True, "message": f"Successfully improved prompt {prompt_id}"}
+        return {"error": f"Failed to improve prompt {prompt_id}"}
     except Exception as e:
         logger.error(f"Error in improve_prompt_from_feedback: {e}")
         return {"error": f"Failed to improve prompt: {str(e)}"}
@@ -422,27 +385,23 @@ async def search_prompts_by_use_case(ctx: Context, use_case: str, limit: int = 5
         Dictionary containing the search results
     """
     try:
-        # Get application context
-        app_context = ctx.request_context.lifespan_context
-
-        # Search by use case
-        results = await app_context.prompt_retriever.search_by_use_case(use_case, limit)
+        app: AppContext = ctx.request_context.lifespan_context
+        results = await app.prompts.search_by_use_case(use_case, limit)
 
         return {
             "success": True,
             "results": [
                 {
-                    "id": result.id,
-                    "use_case": result.use_case,
-                    "summary": result.summary,
-                    "last_updated": result.last_updated.isoformat(),
-                    "num_updates": result.num_updates
+                    "id": r.id,
+                    "use_case": r.use_case,
+                    "summary": r.summary,
+                    "last_updated": r.last_updated.isoformat(),
+                    "num_updates": r.num_updates
                 }
-                for result in results
+                for r in results
             ],
             "message": f"Found {len(results)} prompts for use case '{use_case}'"
         }
-
     except Exception as e:
         logger.error(f"Error in search_prompts_by_use_case: {e}")
         return {"error": f"Failed to search prompts by use case: {str(e)}"}

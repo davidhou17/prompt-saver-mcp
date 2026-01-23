@@ -103,15 +103,7 @@ class MongoDBStorageManager(StorageManager):
         try:
             doc = await self.collection.find_one({"_id": ObjectId(prompt_id)})
             if doc:
-                return PromptSearchResult(
-                    id=str(doc["_id"]),
-                    use_case=doc["use_case"],
-                    summary=doc["summary"],
-                    prompt_template=doc["prompt_template"],
-                    history=doc["history"],
-                    last_updated=doc["last_updated"],
-                    num_updates=doc["num_updates"]
-                )
+                return PromptSearchResult.from_mongo_doc(doc)
         except Exception:
             pass
 
@@ -129,17 +121,7 @@ class MongoDBStorageManager(StorageManager):
 
         results = []
         async for doc in cursor:
-            result = PromptSearchResult(
-                id=str(doc["_id"]),
-                use_case=doc["use_case"],
-                summary=doc["summary"],
-                prompt_template=doc["prompt_template"],
-                history=doc["history"],
-                last_updated=doc["last_updated"],
-                num_updates=doc["num_updates"],
-                score=doc.get("score")
-            )
-            results.append(result)
+            results.append(PromptSearchResult.from_mongo_doc(doc))
 
         return results
 
@@ -177,17 +159,7 @@ class MongoDBStorageManager(StorageManager):
             results = []
 
             async for doc in cursor:
-                result = PromptSearchResult(
-                    id=str(doc["_id"]),
-                    use_case=doc["use_case"],
-                    summary=doc["summary"],
-                    prompt_template=doc["prompt_template"],
-                    history=doc["history"],
-                    last_updated=doc["last_updated"],
-                    num_updates=doc["num_updates"],
-                    score=doc.get("score")
-                )
-                results.append(result)
+                results.append(PromptSearchResult.from_mongo_doc(doc))
 
             return results
 
@@ -206,16 +178,7 @@ class MongoDBStorageManager(StorageManager):
 
             results = []
             async for doc in cursor:
-                result = PromptSearchResult(
-                    id=str(doc["_id"]),
-                    use_case=doc["use_case"],
-                    summary=doc["summary"],
-                    prompt_template=doc["prompt_template"],
-                    history=doc["history"],
-                    last_updated=doc["last_updated"],
-                    num_updates=doc["num_updates"]
-                )
-                results.append(result)
+                results.append(PromptSearchResult.from_mongo_doc(doc))
 
             return results
 

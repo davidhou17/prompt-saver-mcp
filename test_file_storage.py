@@ -125,26 +125,42 @@ data = parse_csv("data.csv", delimiter=",")
         # Test 7: Verify file structure
         print("\n--- Test 7: Verify File Structure ---")
         for use_case_dir in os.listdir(test_dir):
-            dir_path = os.path.join(test_dir, use_case_dir)
-            if os.path.isdir(dir_path):
-                files = os.listdir(dir_path)
+            use_case_path = os.path.join(test_dir, use_case_dir)
+            if os.path.isdir(use_case_path):
                 print(f"✅ {use_case_dir}/")
-                for f in files:
-                    print(f"   - {f}")
-        
+                for prompt_name in os.listdir(use_case_path):
+                    prompt_dir = os.path.join(use_case_path, prompt_name)
+                    if os.path.isdir(prompt_dir):
+                        files = os.listdir(prompt_dir)
+                        print(f"   └── {prompt_name}/")
+                        for f in files:
+                            print(f"       - {f}")
+                        # Verify expected files exist
+                        expected_files = {"prompt.md", "changelog.md"}
+                        actual_files = set(files)
+                        if expected_files == actual_files:
+                            print(f"       ✅ Correct file structure!")
+                        else:
+                            print(f"       ❌ Expected {expected_files}, got {actual_files}")
+
         # Test 8: Read actual file content
         print("\n--- Test 8: Read File Content ---")
         code_gen_dir = os.path.join(test_dir, "code-gen")
         if os.path.exists(code_gen_dir):
-            for filename in os.listdir(code_gen_dir):
-                filepath = os.path.join(code_gen_dir, filename)
-                with open(filepath, 'r') as f:
-                    content = f.read()
-                    print(f"📄 {filename}:")
-                    print("-" * 40)
-                    # Print first 500 chars
-                    print(content[:500] + "..." if len(content) > 500 else content)
-                    print("-" * 40)
+            for prompt_name in os.listdir(code_gen_dir):
+                prompt_dir = os.path.join(code_gen_dir, prompt_name)
+                if os.path.isdir(prompt_dir):
+                    print(f"📁 {prompt_name}/")
+                    for filename in ["prompt.md", "changelog.md"]:
+                        filepath = os.path.join(prompt_dir, filename)
+                        if os.path.exists(filepath):
+                            with open(filepath, 'r') as f:
+                                content = f.read()
+                                print(f"\n📄 {filename}:")
+                                print("-" * 40)
+                                # Print first 500 chars
+                                print(content[:500] + "..." if len(content) > 500 else content)
+                                print("-" * 40)
         
         await storage.disconnect()
         print("\n✅ All tests passed!")

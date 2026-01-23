@@ -31,7 +31,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
-Prompts are stored as markdown files in `~/.prompt-saver/prompts/` by default.
+Prompts are stored in the `prompts/` directory within the MCP server folder by default.
 
 ## Tools
 
@@ -140,7 +140,7 @@ All configuration is done via environment variables in the `env` block of your M
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `STORAGE_TYPE` | `file` or `mongodb` | `file` |
-| `PROMPTS_PATH` | Directory for prompt files | `~/.prompt-saver/prompts` |
+| `PROMPTS_PATH` | Directory for prompt files | `./prompts` (relative to MCP server) |
 | `MONGODB_URI` | MongoDB connection URI | Required for MongoDB |
 | `MONGODB_DATABASE` | Database name | `prompt_saver` |
 
@@ -235,21 +235,41 @@ result = search_prompts_by_use_case("data-analysis", limit=3)
 
 ### File Storage (Default)
 
-Prompts are stored as markdown files with YAML frontmatter:
+Prompts are stored in the `prompts/` directory within the MCP server directory. Each prompt gets its own folder named after the prompt summary (slugified). The `prompts/` directory is gitignored by default to keep your personal prompts private.
 
+**Directory Structure:**
 ```
-~/.prompt-saver/prompts/
+prompts/
+└── {use-case}/
+    └── {prompt-name}/
+        ├── prompt.md       # The prompt template
+        └── changelog.md    # ID, history, and changelog
+```
+
+**Example:**
+```
+prompts/
 ├── code-gen/
-│   ├── python-csv-parser-abc12345.md
-│   └── react-component-generator-def67890.md
-├── data-analysis/
-│   └── pandas-data-cleaning-ghi11111.md
+│   ├── python-csv-parser/
+│   │   ├── prompt.md
+│   │   └── changelog.md
+│   └── react-component-generator/
+│       ├── prompt.md
+│       └── changelog.md
 └── general/
-    └── project-planning-template-jkl22222.md
+    └── project-planning-template/
+        ├── prompt.md
+        └── changelog.md
 ```
 
-Each file has this structure:
+**File Contents:**
 
+`prompt.md` — Clean prompt template, ready to use:
+```markdown
+You are an expert Python developer...
+```
+
+`changelog.md` — Metadata and history with YAML frontmatter:
 ```markdown
 ---
 id: abc12345-1234-5678-9abc-def012345678
@@ -265,11 +285,9 @@ changelog:
 # History
 
 Steps taken to create this prompt...
-
-# Prompt Template
-
-You are an expert Python developer...
 ```
+
+> **Note:** If two prompts have the same name, a suffix (`-2`, `-3`, etc.) is appended to the folder name.
 
 ### MongoDB Storage (Optional)
 

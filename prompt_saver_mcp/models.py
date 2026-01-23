@@ -57,6 +57,47 @@ class PromptSearchResult(BaseModel):
     num_updates: int
     score: Optional[float] = None
 
+    @classmethod
+    def from_mongo_doc(cls, doc: Dict[str, Any], score: Optional[float] = None) -> "PromptSearchResult":
+        """Create from MongoDB document."""
+        return cls(
+            id=str(doc["_id"]),
+            use_case=doc["use_case"],
+            summary=doc["summary"],
+            prompt_template=doc["prompt_template"],
+            history=doc["history"],
+            last_updated=doc["last_updated"],
+            num_updates=doc["num_updates"],
+            score=score or doc.get("score")
+        )
+
+    @classmethod
+    def from_file_data(
+        cls,
+        prompt_id: str,
+        metadata: Dict[str, Any],
+        prompt_template: str,
+        history: str,
+        score: Optional[float] = None
+    ) -> "PromptSearchResult":
+        """Create from file storage data."""
+        last_updated = metadata.get('last_updated')
+        if isinstance(last_updated, str):
+            last_updated = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+        elif not isinstance(last_updated, datetime):
+            last_updated = datetime.now(timezone.utc)
+
+        return cls(
+            id=prompt_id,
+            use_case=metadata.get('use_case', 'general'),
+            summary=metadata.get('summary', ''),
+            prompt_template=prompt_template,
+            history=history,
+            last_updated=last_updated,
+            num_updates=metadata.get('num_updates', 0),
+            score=score
+        )
+
 
 class ConversationHistory(BaseModel):
     """Conversation history."""

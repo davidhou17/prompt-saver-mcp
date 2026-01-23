@@ -13,13 +13,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from prompt_saver_mcp.storage import StorageManager, FileStorageManager
 from prompt_saver_mcp.embeddings import EmbeddingManager
 from prompt_saver_mcp.llm_service import LLMService
-from prompt_saver_mcp.prompt_processor import PromptProcessor
-from prompt_saver_mcp.prompt_retriever import PromptRetriever
-from prompt_saver_mcp.prompt_updater import PromptUpdater
-from prompt_saver_mcp.models import ConversationHistory, PromptTemplate
+from prompt_saver_mcp.prompt_service import PromptService
+from prompt_saver_mcp.models import ConversationHistory, PromptTemplate, PromptUpdate
 
-# Default prompts directory
-DEFAULT_PROMPTS_PATH = os.path.expanduser("~/.prompt-saver/prompts")
+# Default prompts directory - relative to the MCP server directory
+DEFAULT_PROMPTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
 
 
 class TestRunner:
@@ -29,9 +27,7 @@ class TestRunner:
         self.storage_manager: Optional[StorageManager] = None
         self.embedding_manager: Optional[EmbeddingManager] = None
         self.llm_service = None
-        self.prompt_processor = None
-        self.prompt_retriever = None
-        self.prompt_updater = None
+        self.prompt_service: Optional[PromptService] = None
         self.test_results = []
 
     async def setup(self):
@@ -105,12 +101,16 @@ class TestRunner:
             endpoint=llm_endpoint,
             model=llm_model
         )
-        self.prompt_processor = PromptProcessor(self.embedding_manager, self.llm_service)
-        self.prompt_retriever = PromptRetriever(self.storage_manager, self.embedding_manager)
-        self.prompt_updater = PromptUpdater(self.storage_manager, self.embedding_manager, self.llm_service)
 
         # Connect to storage
         await self.storage_manager.connect()
+
+        # Initialize unified prompt service
+        self.prompt_service = PromptService(
+            self.storage_manager,
+            self.embedding_manager,
+            self.llm_service
+        )
         print(f"✅ Setup complete! Using {storage_type} storage")
         
     async def cleanup(self):
@@ -180,8 +180,8 @@ class TestRunner:
         except Exception as e:
             self.log_test("LLM Service", False, f"Failed: {str(e)}")
             
-    async def test_prompt_processor(self):
-        """Test prompt processor."""
+    async def test_prompt_service_create(self):
+        """Test prompt service creation."""
         try:
             # Create test conversation
             conversation = ConversationHistory(
@@ -190,19 +190,19 @@ class TestRunner:
                     {"role": "assistant", "content": "Here's a function to reverse a string:\n\n```python\ndef reverse_string(s):\n    return s[::-1]\n```"}
                 ]
             )
-            
-            # Process conversation
-            prompt_template = await self.prompt_processor.analyze_conversation(conversation)
-            
+
+            # Create prompt using unified service
+            prompt_template = await self.prompt_service.create_prompt(conversation)
+
             if isinstance(prompt_template, PromptTemplate):
-                self.log_test("Prompt Processing", True, f"Created prompt template with use case: {prompt_template.use_case}")
+                self.log_test("Prompt Service - Create", True, f"Created prompt template with use case: {prompt_template.use_case}")
                 return prompt_template
             else:
-                self.log_test("Prompt Processing", False, "Invalid prompt template format")
+                self.log_test("Prompt Service - Create", False, "Invalid prompt template format")
                 return None
-                
+
         except Exception as e:
-            self.log_test("Prompt Processing", False, f"Failed: {str(e)}")
+            self.log_test("Prompt Service - Create", False, f"Failed: {str(e)}")
             return None
             
     async def test_storage_operations(self, prompt_template: PromptTemplate):
@@ -244,31 +244,28 @@ class TestRunner:
 
         return prompt_id
             
-    async def test_prompt_retriever(self):
-        """Test prompt retriever."""
+    async def test_prompt_service_search(self):
+        """Test prompt service search."""
         try:
-            # Test semantic search
-            results = await self.prompt_retriever.search_prompts("Python programming help", limit=3)
-            self.log_test("Prompt Retriever - Semantic Search", True, f"Found {len(results)} similar prompts")
+            # Test semantic/text search
+            results = await self.prompt_service.search("Python programming help", limit=3)
+            self.log_test("Prompt Service - Search", True, f"Found {len(results)} similar prompts")
 
-            # Test text search
-            results = await self.prompt_retriever.search_prompts("function", limit=3)
-            self.log_test("Prompt Retriever - Text Search", True, f"Found {len(results)} text matches")
+            # Test search by use case
+            results = await self.prompt_service.search_by_use_case("code-gen", limit=3)
+            self.log_test("Prompt Service - Search by Use Case", True, f"Found {len(results)} prompts in code-gen")
 
         except Exception as e:
-            self.log_test("Prompt Retriever", False, f"Failed: {str(e)}")
-            
-    async def test_prompt_updater(self, prompt_id: str):
-        """Test prompt updater."""
+            self.log_test("Prompt Service - Search", False, f"Failed: {str(e)}")
+
+    async def test_prompt_service_update(self, prompt_id: str):
+        """Test prompt service update."""
         if not prompt_id:
-            self.log_test("Prompt Updater", False, "No prompt ID to test with")
+            self.log_test("Prompt Service - Update", False, "No prompt ID to test with")
             return
 
         try:
-            # Import the PromptUpdate model
-            from prompt_saver_mcp.models import PromptUpdate
-
-            # Test update
+            # Test manual update
             update_data = PromptUpdate(
                 prompt_id=prompt_id,
                 summary="Updated summary for testing",
@@ -276,31 +273,31 @@ class TestRunner:
                 change_description="Test update"
             )
 
-            success = await self.prompt_updater.update_prompt(update_data)
+            success = await self.prompt_service.update(update_data)
             if success:
-                self.log_test("Prompt Updater - Manual Update", True, "Successfully updated prompt")
+                self.log_test("Prompt Service - Manual Update", True, "Successfully updated prompt")
             else:
-                self.log_test("Prompt Updater - Manual Update", False, "Failed to update prompt")
+                self.log_test("Prompt Service - Manual Update", False, "Failed to update prompt")
 
         except Exception as e:
-            self.log_test("Prompt Updater - Manual Update", False, f"Failed: {str(e)}")
+            self.log_test("Prompt Service - Manual Update", False, f"Failed: {str(e)}")
 
         # Test AI-driven improvement from feedback
         try:
-            feedback = "The template worked well for creating brand collaboration content, but I needed to adapt it for poetry format specifically. The epic poem style was effective but needed to be more concise - the original version was too long. The template should include guidance for shorter poem formats and emphasize that epic poems should still be digestible."
-            conversation_context = "User requested a poem about Walmart and Lunchables collaboration. I used the existing brand collaboration prompt template but had to adapt it significantly for poetry format."
+            feedback = "The template worked well but needed to be more concise."
+            conversation_context = "User requested a string reversal function."
 
-            success = await self.prompt_updater.improve_prompt_from_feedback(
+            success = await self.prompt_service.improve_from_feedback(
                 prompt_id, feedback, conversation_context
             )
 
             if success:
-                self.log_test("Prompt Updater - AI Improvement", True, "Successfully improved prompt based on feedback")
+                self.log_test("Prompt Service - AI Improvement", True, "Successfully improved prompt based on feedback")
             else:
-                self.log_test("Prompt Updater - AI Improvement", False, "Failed to improve prompt based on feedback")
+                self.log_test("Prompt Service - AI Improvement", False, "Failed to improve prompt based on feedback")
 
         except Exception as e:
-            self.log_test("Prompt Updater - AI Improvement", False, f"Failed: {str(e)}")
+            self.log_test("Prompt Service - AI Improvement", False, f"Failed: {str(e)}")
             
     async def run_all_tests(self):
         """Run all tests."""
@@ -314,15 +311,15 @@ class TestRunner:
             await self.test_embedding_manager()
             await self.test_llm_service()
 
-            # Test prompt processing and get a template
-            prompt_template = await self.test_prompt_processor()
+            # Test prompt service creation and get a template
+            prompt_template = await self.test_prompt_service_create()
 
             # Test storage operations and get an ID
             prompt_id = await self.test_storage_operations(prompt_template)
 
-            # Test retrieval and updating
-            await self.test_prompt_retriever()
-            await self.test_prompt_updater(prompt_id)
+            # Test search and updating via prompt service
+            await self.test_prompt_service_search()
+            await self.test_prompt_service_update(prompt_id)
 
         finally:
             await self.cleanup()

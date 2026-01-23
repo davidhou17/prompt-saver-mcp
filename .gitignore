@@ -203,3 +203,6 @@ scratch/
 notes/
 TODO.md
 NOTES.md
+
+# Personal prompts (user-specific data)
+prompts/
