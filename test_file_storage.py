@@ -46,6 +46,7 @@ async def run_tests():
         print("--- Test 1: Save Prompt ---")
         prompt1 = PromptTemplate(
             use_case="code-gen",
+            title="python-csv-parser",
             summary="Python function to parse CSV files with error handling",
             prompt_template="""You are an expert Python developer.
 
@@ -84,6 +85,7 @@ data = parse_csv("data.csv", delimiter=",")
         print("\n--- Test 3: Save Second Prompt ---")
         prompt2 = PromptTemplate(
             use_case="data-analysis",
+            title="pandas-dataframe-cleaning",
             summary="Pandas DataFrame cleaning and transformation",
             prompt_template="You are a data scientist expert in pandas...",
             history="Created for data cleaning tasks",

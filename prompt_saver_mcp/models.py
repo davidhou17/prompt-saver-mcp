@@ -36,6 +36,7 @@ class PromptTemplate(BaseModel):
     """Stored prompt template."""
 
     use_case: str
+    title: str  # Short descriptive title for file naming (2-5 words, hyphenated)
     summary: str
     prompt_template: str
     history: str
@@ -50,6 +51,7 @@ class PromptSearchResult(BaseModel):
 
     id: str
     use_case: str
+    title: str  # Short descriptive title for file naming
     summary: str
     prompt_template: str
     history: str
@@ -63,6 +65,7 @@ class PromptSearchResult(BaseModel):
         return cls(
             id=str(doc["_id"]),
             use_case=doc["use_case"],
+            title=doc.get("title", ""),
             summary=doc["summary"],
             prompt_template=doc["prompt_template"],
             history=doc["history"],
@@ -90,6 +93,7 @@ class PromptSearchResult(BaseModel):
         return cls(
             id=prompt_id,
             use_case=metadata.get('use_case', 'general'),
+            title=metadata.get('title', ''),
             summary=metadata.get('summary', ''),
             prompt_template=prompt_template,
             history=history,

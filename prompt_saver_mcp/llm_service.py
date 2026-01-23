@@ -113,6 +113,32 @@ Summary:"""
         )
 
         return content[:500]
+
+    async def generate_title(self, conversation: ConversationHistory) -> str:
+        """Generate a short, descriptive title for the conversation (2-5 words)."""
+        text = self._extract_text(conversation)
+
+        content = await self._make_completion(
+            messages=[{
+                "role": "user",
+                "content": f"""Create a short, descriptive title (2-5 words) for this conversation.
+Use lowercase with hyphens, like: "csv-parser-error-handling" or "react-auth-flow".
+Only output the title, nothing else.
+
+{text[:1000]}
+
+Title:"""
+            }],
+            temperature=0.2,
+            max_tokens=20
+        )
+
+        # Clean up the title - remove quotes, extra spaces, ensure hyphenated
+        import re
+        title = content.strip().strip('"\'').lower()
+        title = re.sub(r'[^\w\s-]', '', title)
+        title = re.sub(r'[-\s]+', '-', title)
+        return title[:40].rstrip('-') or "untitled-prompt"
     
     async def create_prompt_template(self, conversation: ConversationHistory, use_case: str) -> str:
         """Create reusable prompt template following prompt engineering best practices."""
@@ -141,11 +167,11 @@ CONVERSATION TO ANALYZE:
 Create a well-structured prompt template:"""
             }],
             temperature=0.4,
-            max_tokens=800
+            max_tokens=2000
         )
 
         return content
-    
+
     async def extract_history_summary(self, conversation: ConversationHistory) -> str:
         """Extract history summary."""
         text = self._extract_text(conversation)

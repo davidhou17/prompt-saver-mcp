@@ -37,6 +37,7 @@ class PromptService:
     async def create_prompt(self, conversation: ConversationHistory) -> PromptTemplate:
         """Analyze conversation and create a prompt template."""
         use_case = await self.llm.categorize_conversation(conversation)
+        title = await self.llm.generate_title(conversation)
         summary = await self.llm.generate_summary(conversation)
         prompt_template = await self.llm.create_prompt_template(conversation, use_case)
         history = await self.llm.extract_history_summary(conversation)
@@ -44,6 +45,7 @@ class PromptService:
 
         return PromptTemplate(
             use_case=use_case,
+            title=title,
             summary=summary,
             prompt_template=prompt_template,
             history=history,

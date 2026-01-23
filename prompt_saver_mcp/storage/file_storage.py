@@ -70,11 +70,10 @@ class FileStorageManager(StorageManager):
 
     def _slugify(self, text: str, max_length: int = 50) -> str:
         """Convert text to a URL-friendly slug."""
-        # Convert to lowercase and replace spaces with hyphens
         slug = text.lower().strip()
         slug = re.sub(r'[^\w\s-]', '', slug)
         slug = re.sub(r'[-\s]+', '-', slug)
-        return slug[:max_length].rstrip('-')
+        return slug[:max_length].rstrip('-') or "untitled"
 
     def _read_changelog_metadata(self, changelog_path: Path) -> Optional[Dict[str, Any]]:
         """Read YAML frontmatter from a changelog file."""
@@ -135,6 +134,7 @@ class FileStorageManager(StorageManager):
         frontmatter = {
             'id': prompt_id,
             'use_case': prompt.use_case,
+            'title': prompt.title,
             'summary': prompt.summary,
             'created': datetime.now(timezone.utc).isoformat(),
             'last_updated': prompt.last_updated.isoformat(),
@@ -155,7 +155,7 @@ class FileStorageManager(StorageManager):
     async def save_prompt(self, prompt: PromptTemplate) -> str:
         """Save a new prompt to its own directory."""
         prompt_id = str(uuid.uuid4())
-        slug = self._slugify(prompt.summary)
+        slug = self._slugify(prompt.title)
 
         # Create use-case subdirectory with prompt directory
         use_case_dir = self.prompts_path / prompt.use_case
