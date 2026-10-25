@@ -1,7 +1,7 @@
 # Prompt Saver MCP Server
 
 > [!NOTE]
-> Well, now this thing called [Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) exists! :) This was a fun project exploring the same idea before it had a name: saving what worked as reusable instructions your agent can pull up later, and letting your agent write and maintain them for you as well.
+> Well, now this thing called [Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) exists! :) This was a fun project exploring the same idea before it had a name: saving what worked as reusable instructions your agent can pull up later, and letting your agent write and maintain them for you as well. Keeping it up for posterity.
 
 MCP server that converts successful conversation threads into prompts that can be used for future tasks.
 
