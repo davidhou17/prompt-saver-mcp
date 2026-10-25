@@ -1,5 +1,7 @@
 # Prompt Saver MCP Server
 
+> **Update:** Well, now this thing called [Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) exists! :) This was a fun project exploring the same idea before it had a name: saving what worked as reusable instructions your agent can pull up later, and letting your agent write and maintain them for you as well.
+
 MCP server that converts successful conversation threads into prompts that can be used for future tasks.
 
 Based on the principle that the most important artifact of your LLM interactions is what you did to produce the results, not the results themselves (see [The New Code](https://www.youtube.com/watch?v=8rABwKRsec4)). And also considering that LLMs are probably already better prompt engineers than humans.
